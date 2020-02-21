@@ -1,0 +1,5 @@
+.idea
+build/*
+!build/config.yaml
+internal/thriftgen
+internal/data/sql_create_generated.go
