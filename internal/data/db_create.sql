@@ -36,12 +36,10 @@ CREATE TABLE IF NOT EXISTS sample
 
 CREATE TABLE IF NOT EXISTS production
 (
-    place         INTEGER NOT NULL CHECK ( place BETWEEN 0 AND 16),
-    sample_id     INTEGER NOT NULL,
-    break_circuit BOOLEAN NOT NULL CHECK ( break_circuit IN (0, 1) ),
-    value         REAL    NOT NULL,
-    ok            BOOLEAN NOT NULL CHECK ( ok IN (0, 1) ),
-    message       TEXT    NOT NULL CHECK ( message != '' ),
+    place     INTEGER NOT NULL CHECK ( place BETWEEN 0 AND 15),
+    sample_id INTEGER NOT NULL,
+    break     BOOLEAN NOT NULL CHECK ( break IN (0, 1) ),
+    value     REAL    NOT NULL,
 
     PRIMARY KEY (sample_id, place),
     CONSTRAINT product_value_sample_foreign_key

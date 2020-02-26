@@ -1,5 +1,6 @@
 .idea
 build/*
-!build/config.yaml
+!build/img
+!build/sensel.exe.manifest
 internal/thriftgen
 internal/data/sql_create_generated.go

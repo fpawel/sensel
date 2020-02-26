@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ansel1/merry"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 	"time"
 )
 
@@ -21,10 +22,10 @@ func Open(filename string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func NewMeasurement(db *sqlx.DB) (int64, error){
-	r,err := db.Exec(`INSERT INTO measurement (created_at)  VALUES (?)`, time.Now())
+func NewMeasurement(db *sqlx.DB) (int64, error) {
+	r, err := db.Exec(`INSERT INTO measurement (created_at)  VALUES (?)`, time.Now())
 	if err != nil {
-		return 0,err
+		return 0, err
 	}
 	return getNewInsertedID(r)
 }

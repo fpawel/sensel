@@ -21,17 +21,16 @@ type Sample struct {
 	Temperature float64      `db:"temperature"`
 	Current     float64      `db:"current"`
 	Productions []Production `db:"-"`
-	Logs        []Log        `db:"-"`
+	Logs        []SampleLog  `db:"-"`
 }
 
 type Production struct {
-	Value        float64 `db:"value"`
-	BreakCircuit bool    `db:"break_circuit"`
-	Ok           bool    `db:"ok"`
-	Message      string  `db:"message"`
+	Place int     `db:"int"`
+	Value float64 `db:"value"`
+	Break bool    `db:"break"`
 }
 
-type Log struct {
+type SampleLog struct {
 	CreatedAt time.Time `db:"created_at"`
 	Ok        bool      `db:"ok"`
 	Message   string    `db:"message"`
