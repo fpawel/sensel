@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS measurement
 (
     measurement_id INTEGER PRIMARY KEY NOT NULL,
     created_at     TIMESTAMP           NOT NULL DEFAULT (datetime('now', 'localtime')) UNIQUE,
+    product_type   TEXT                NOT NULL DEFAULT '',
     name           TEXT                NOT NULL DEFAULT ''
 );
 

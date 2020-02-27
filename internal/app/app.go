@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/jmoiron/sqlx"
@@ -10,9 +11,20 @@ import (
 	"github.com/powerman/structlog"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 func Main() {
+	defer func() {
+		x := recover()
+		panicMsgBox(x)
+		if x != nil {
+			panic(x)
+		}
+	}()
+
+	initProductTypes()
+
 	var err error
 
 	// общий контекст приложения с прерыванием
@@ -20,11 +32,14 @@ func Main() {
 	appCtx, interrupt = context.WithCancel(context.Background())
 
 	// соединение с базой данных
-	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "atool.sqlite")
+	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "sensel.sqlite")
 	log.Debug("open database: " + dbFilename)
 
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
+
+	// инициализация модели представления
+	initMeasurementViewModel()
 
 	must.PanicIf(newApplicationWindow().Create())
 
@@ -36,11 +51,32 @@ func Main() {
 	log.Debug("прервать все фоновые горутины")
 	interrupt()
 
+	// дождаться завершения выполняемых горутин
+	wgWork.Wait()
+
 	log.Debug("закрыть соединение с базой данных")
 	log.ErrIfFail(db.Close)
 
 	// записать в лог что всё хорошо
 	log.Debug("all canceled and closed")
+}
+
+// initMeasurementViewModel инициализация модели представления
+func initMeasurementViewModel() {
+	samples := make([]data.Sample, 10)
+	for i := range samples {
+		samples[i].Name = fmt.Sprintf("X%d", i)
+		samples[i].CreatedAt = time.Now().Add(-time.Minute * time.Duration(i))
+	}
+	data.RandSamples(samples)
+	measurementViewModel = &MeasurementViewModel{
+		M: data.Measurement{
+			Samples: samples,
+		},
+	}
+	for s := range ProductTypes {
+		measurementViewModel.M.ProductType = s
+	}
 }
 
 var (

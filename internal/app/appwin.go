@@ -1,42 +1,55 @@
 package app
 
 import (
-	"fmt"
-	"github.com/fpawel/sensel/internal/data"
+	"context"
+	"github.com/fpawel/sensel/internal/pkg/must"
+	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
-	"math"
-	"math/rand"
-	"time"
+	"sync"
 )
 
 func newApplicationWindow() MainWindow {
 
-	measurementViewModel = &MeasurementViewModel{
-		M: data.Measurement{
-			Samples: randSamples(),
-		},
-	}
-
 	return MainWindow{
-		AssignTo: &appWindow,
-		Title:    "ЧЭ лаборатория 74",
+		AssignTo:   &appWindow,
+		Title:      "ЧЭ лаборатория 74",
+		Background: SolidColorBrush{Color: walk.RGB(255, 255, 255)},
 		Font: Font{
 			Family:    "Segoe UI",
 			PointSize: 10,
 		},
-		Layout: VBox{},
+		Layout: VBox{
+			Alignment: AlignHFarVNear,
+		},
 		MenuItems: []MenuItem{
-			Menu{
-				Text: "Опрос",
+			Action{
+				AssignTo: &menuRunInterrogate,
+				Text:     "Опрос",
+				OnTriggered: func() {
+					runWork(func(ctx context.Context) error {
+						<-ctx.Done()
+						return nil
+					})
+				},
 			},
-			Menu{
-				Text: "Обмер",
+			Action{
+				AssignTo: &menuRunMeasure,
+				Text:     "Обмер",
 			},
-			Menu{
-				Text: "Прервать",
+			Action{
+				AssignTo: &menuStop,
+				Text:     "Прервать",
+				Visible:  false,
+				OnTriggered: func() {
+					interruptWorkFunc()
+				},
 			},
-			Menu{
+			Action{
 				Text: "Настройки",
+				OnTriggered: func() {
+					_, err := DialogAppConfig().Run(appWindow)
+					must.PanicIf(err)
+				},
 			},
 			Menu{
 				Text: "Конфигурация",
@@ -46,14 +59,32 @@ func newApplicationWindow() MainWindow {
 			},
 		},
 		Children: []Widget{
+			ScrollView{
+				MaxSize:       Size{Height: 50, Width: 0},
+				MinSize:       Size{Height: 50, Width: 0},
+				VerticalFixed: true,
+				Layout:        HBox{Alignment: AlignHCenterVCenter},
+				Children: []Widget{
+					RadioButton{
+						Text: "Измерено",
+						OnClicked: func() {
+							measurementViewModel.SetShowCalc(false)
+						},
+					},
+					RadioButton{
+						Text: "Расчитано",
+						OnClicked: func() {
+							measurementViewModel.SetShowCalc(true)
+						},
+					},
+				},
+			},
 			TableView{
-				//AlternatingRowBG:         true,
-				//DoubleBuffering:          true,
 				Columns:                  measurementViewModel.Columns(),
+				Model:                    measurementViewModel,
 				ColumnsOrderable:         false,
 				ColumnsSizable:           true,
 				LastColumnStretched:      false,
-				Model:                    measurementViewModel,
 				MultiSelection:           true,
 				NotSortableByHeaderClick: true,
 			},
@@ -61,34 +92,30 @@ func newApplicationWindow() MainWindow {
 	}
 }
 
-func randSamples() []data.Sample {
-	xs := make([]data.Sample, 10)
-	for i := range xs {
-		for j := 0; j < 16; j++ {
-			xs[i].Productions = randProductions()
-			xs[i].Temperature = rand3()
-			xs[i].Current = rand3()
-			xs[i].Consumption = rand3()
-			xs[i].CreatedAt = time.Now()
-			xs[i].Name = fmt.Sprintf("X%d", i)
-		}
+func runWork(work func(ctx context.Context) error) {
+
+	setupWidgets := func(run bool) {
+		must.PanicIf(menuStop.SetVisible(run))
+		must.PanicIf(menuRunMeasure.SetVisible(!run))
+		must.PanicIf(menuRunInterrogate.SetVisible(!run))
 	}
-	return xs
+
+	setupWidgets(true)
+	var ctx context.Context
+	ctx, interruptWorkFunc = context.WithCancel(appCtx)
+	wgWork.Add(1)
+	go func() {
+		_ = work(ctx)
+		interruptWorkFunc()
+		wgWork.Done()
+		appWindow.Synchronize(func() {
+			setupWidgets(false)
+		})
+	}()
 }
 
-func randProductions() []data.Production {
-	xs := make([]data.Production, 16)
-	for i := range xs {
-		xs[i].Place = i
-		xs[i].Break = rand.Float64() < 0.1
-		xs[i].Value = rand3()
-	}
-	return xs
-}
-func rand3() float64 {
-	return math.Round(rand.Float64()*1000) / 1000
-}
-
-func init() {
-	rand.NewSource(time.Now().UnixNano())
-}
+var (
+	menuStop, menuRunMeasure, menuRunInterrogate *walk.Action
+	wgWork                                       sync.WaitGroup
+	interruptWorkFunc                            = func() {}
+)

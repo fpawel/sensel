@@ -2,7 +2,6 @@ package cfg
 
 import (
 	"fmt"
-	"github.com/fpawel/comm"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -13,7 +12,6 @@ import (
 )
 
 type Config struct {
-	LogComm   bool      `yaml:"log_comm"`
 	Gas       Gas       `yaml:"gas"`
 	Voltmeter Voltmeter `yaml:"voltmeter"`
 }
@@ -40,7 +38,6 @@ func SetYaml(strYaml []byte) error {
 	if err := yaml.Unmarshal(strYaml, &c); err != nil {
 		return err
 	}
-	comm.SetEnableLog(c.LogComm)
 	mu.Lock()
 	defer mu.Unlock()
 	must.PanicIf(writeFile(strYaml))
@@ -62,7 +59,6 @@ func Set(c Config) error {
 	if err := writeFile(b); err != nil {
 		return err
 	}
-	comm.SetEnableLog(c.LogComm)
 	cfg = c
 	return nil
 }

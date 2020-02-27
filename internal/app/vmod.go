@@ -9,7 +9,16 @@ import (
 
 type MeasurementViewModel struct {
 	walk.TableModelBase
-	M data.Measurement
+	M        data.Measurement
+	ShowCalc bool
+}
+
+func (x *MeasurementViewModel) SetShowCalc(v bool) {
+	if v == x.ShowCalc {
+		return
+	}
+	x.ShowCalc = v
+	x.PublishRowsReset()
 }
 
 func (x *MeasurementViewModel) RowCount() int {
@@ -36,15 +45,16 @@ func (x *MeasurementViewModel) StyleCell(s *walk.CellStyle) {
 			if p.Break {
 				if i == s.Row() {
 					s.BackgroundColor = walk.RGB(240, 240, 240)
-					if s.Col() == 0 || s.Col()-1 == nSmp {
+					switch s.Col() {
+					case 0:
+						s.Image = "img/error.png"
+					case nSmp + 1:
 						s.Image = "img/error_circle.png"
 					}
 				}
 			}
 		}
 	}
-
-	//smp := x.M.Samples[s.Col()-1]
 }
 
 func (x *MeasurementViewModel) SetupTableViewColumns(tableView *walk.TableView) {

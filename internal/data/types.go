@@ -8,6 +8,7 @@ type Measurement struct {
 	MeasurementID int64     `db:"measurement_id"`
 	CreatedAt     time.Time `db:"created_at"`
 	Name          string    `db:"name"`
+	ProductType   string    `db:"product_type"`
 	Pgs           []float64 `db:"-"`
 	Samples       []Sample  `db:"-"`
 }
