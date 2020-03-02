@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/fpawel/sensel/internal/calcsens"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
@@ -9,15 +10,18 @@ import (
 
 type MeasurementViewModel struct {
 	walk.TableModelBase
-	M        data.Measurement
-	ShowCalc bool
+	m       data.Measurement
+	c       []calcsens.ColumnCalculated
+	pt      calcsens.ProductType
+	sc      bool
+	calcErr error
 }
 
 func (x *MeasurementViewModel) SetShowCalc(v bool) {
-	if v == x.ShowCalc {
+	if v == x.sc {
 		return
 	}
-	x.ShowCalc = v
+	x.sc = v
 	x.PublishRowsReset()
 }
 
@@ -30,8 +34,8 @@ func (x *MeasurementViewModel) Value(row, col int) interface{} {
 	if col == 0 {
 		return mRo.Title
 	}
-	smp := x.M.Samples[col-1]
-	return mRo.F(smp)
+	smp := x.c[col-1]
+	return mRo.F(smp, x.sc)
 
 }
 
@@ -40,7 +44,7 @@ func (x *MeasurementViewModel) StyleCell(s *walk.CellStyle) {
 	if s.Col() < 0 || s.Row() < 0 {
 		return
 	}
-	for nSmp, smp := range x.M.Samples {
+	for nSmp, smp := range x.m.Samples {
 		for i, p := range smp.Productions {
 			if p.Break {
 				if i == s.Row() {
@@ -66,11 +70,11 @@ func (x *MeasurementViewModel) SetupTableViewColumns(tableView *walk.TableView) 
 
 type measurementRow struct {
 	Title string
-	F     func(smp data.Sample) interface{}
+	F     func(smp calcsens.ColumnCalculated, showCalc bool) interface{}
 }
 
 var measurementRows = func() (xs []measurementRow) {
-	appendResult := func(title string, F func(data.Sample) interface{}) {
+	appendResult := func(title string, F func(calcsens.ColumnCalculated, bool) interface{}) {
 		xs = append(xs, measurementRow{
 			Title: title,
 			F:     F,
@@ -78,26 +82,29 @@ var measurementRows = func() (xs []measurementRow) {
 	}
 	for i := 0; i < 16; i++ {
 		i := i
-		appendResult(fmt.Sprintf("%d", i), func(smp data.Sample) interface{} {
+		appendResult(fmt.Sprintf("%d", i), func(smp calcsens.ColumnCalculated, showCalc bool) interface{} {
+			if showCalc {
+				return smp.Calculated[i].Float
+			}
 			return smp.Productions[i].Value
 		})
 	}
-	appendResult("Газ", func(smp data.Sample) interface{} {
+	appendResult("Газ", func(smp calcsens.ColumnCalculated, _ bool) interface{} {
 		if smp.Gas == 0 {
 			return ""
 		}
 		return smp.Gas
 	})
-	appendResult("Расход", func(smp data.Sample) interface{} {
+	appendResult("Расход", func(smp calcsens.ColumnCalculated, _ bool) interface{} {
 		return smp.Consumption
 	})
-	appendResult("Ток", func(smp data.Sample) interface{} {
+	appendResult("Ток", func(smp calcsens.ColumnCalculated, _ bool) interface{} {
 		return smp.Current
 	})
-	appendResult("Температура", func(smp data.Sample) interface{} {
+	appendResult("Температура", func(smp calcsens.ColumnCalculated, _ bool) interface{} {
 		return smp.Temperature
 	})
-	appendResult("Время", func(smp data.Sample) interface{} {
+	appendResult("Время", func(smp calcsens.ColumnCalculated, _ bool) interface{} {
 		return smp.CreatedAt.Format("15:04:05")
 	})
 	return

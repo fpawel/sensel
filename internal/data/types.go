@@ -10,7 +10,7 @@ type Measurement struct {
 	Name          string    `db:"name"`
 	ProductType   string    `db:"product_type"`
 	Pgs           []float64 `db:"-"`
-	Samples       []Sample  `db:"-"`
+	Samples       Samples   `db:"-"`
 }
 
 type Sample struct {
@@ -35,4 +35,16 @@ type SampleLog struct {
 	CreatedAt time.Time `db:"created_at"`
 	Ok        bool      `db:"ok"`
 	Message   string    `db:"message"`
+}
+
+type Samples []Sample
+
+func (x Samples) GetSampleByName(name string) (Sample, bool) {
+	for _, smp := range x {
+		if smp.Name == name {
+			return smp, true
+		}
+	}
+	return Sample{}, false
+
 }

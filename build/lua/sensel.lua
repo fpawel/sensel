@@ -39,7 +39,7 @@ product('СГГ-1',
         end),
 
         measure("Uр", 0, "0m", function(x)
-            return x.U, true
+            return x:Measure('R0A').Value, true
         end),
 
         measure("T20A", 1, "1m", function(x)

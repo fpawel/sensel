@@ -12,7 +12,17 @@ func (x *MeasurementViewModel) Columns() (xs []TableViewColumn) {
 		Name:  "Датчик",
 		Title: "Датчик",
 	})
-	for _, smp := range x.M.Samples {
+
+	if x.sc {
+		for _, m := range x.pt.Columns {
+			appendResult(TableViewColumn{
+				Name:  m.Name,
+				Title: m.Name,
+			})
+		}
+		return
+	}
+	for _, smp := range x.m.Samples {
 		appendResult(TableViewColumn{
 			Name:  smp.Name,
 			Title: smp.Name,

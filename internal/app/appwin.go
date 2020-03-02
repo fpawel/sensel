@@ -66,15 +66,18 @@ func newApplicationWindow() MainWindow {
 				Layout:        HBox{Alignment: AlignHCenterVCenter},
 				Children: []Widget{
 					RadioButton{
-						Text: "Измерено",
+						AssignTo: &radioButtonCalc,
+						Text:     "Расчёт",
+						Value:    true,
 						OnClicked: func() {
-							measurementViewModel.SetShowCalc(false)
+							measurementViewModel.SetShowCalc(true)
 						},
 					},
 					RadioButton{
-						Text: "Расчитано",
+						Text:  "Снятие",
+						Value: false,
 						OnClicked: func() {
-							measurementViewModel.SetShowCalc(true)
+							measurementViewModel.SetShowCalc(false)
 						},
 					},
 				},
@@ -115,7 +118,11 @@ func runWork(work func(ctx context.Context) error) {
 }
 
 var (
-	menuStop, menuRunMeasure, menuRunInterrogate *walk.Action
-	wgWork                                       sync.WaitGroup
-	interruptWorkFunc                            = func() {}
+	menuStop,
+	menuRunMeasure,
+	menuRunInterrogate *walk.Action
+	radioButtonCalc   *walk.RadioButton
+	appWindow         *walk.MainWindow
+	wgWork            sync.WaitGroup
+	interruptWorkFunc = func() {}
 )

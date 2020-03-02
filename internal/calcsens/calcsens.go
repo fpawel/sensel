@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type measurement struct {
+type column struct {
 	Name     string
 	Gas      int
 	Duration time.Duration
@@ -18,34 +18,37 @@ type calcSamplesFunc = func(*measureData) (float64, bool)
 
 type measureData struct {
 	U, I, Q, T, C float64
-
-	dataMeasure data.Measurement
-	prodType    productType
-	calculated  []SampleCalc
-	place       int
-	err         error
+	place         int
+	d             data.Measurement
+	prodType      productType
+	calculated    []ColumnCalculated
+	err           error
 }
 
 func (x measureData) Measure(name string) prevMeasureData {
 	m, foundMeasurement := x.prodType.measurementByName(name)
 	if !foundMeasurement {
-		x.err = fmt.Errorf("измерение %q не задано для исполнения %q", name, x.dataMeasure.ProductType)
+		x.err = fmt.Errorf("измерение %q не задано для исполнения %q", name, x.d.ProductType)
 		return nanMeasureData
 	}
 	for _, r := range x.calculated {
 		if r.Name == name {
-			if len(x.dataMeasure.Pgs) <= m.Gas {
-				x.err = fmt.Errorf("нет значения ПГС%d", m.Gas)
+			if len(x.d.Pgs) <= m.Gas {
+				x.err = fmt.Errorf("нет значения ПГС%d для расчёта %q", m.Gas, name)
 				return nanMeasureData
 			}
-			return prevMeasureData{
-				Value: r.Calc[x.place].Float,
-				U:     r.Productions[x.place].Value,
-				I:     r.Current,
-				Q:     r.Consumption,
-				T:     r.Temperature,
-				C:     x.dataMeasure.Pgs[m.Gas],
+			pd := nanMeasureData
+			pd.Value = r.Values[x.place].Float
+			pd.Pgs = x.d.Pgs[m.Gas]
+			for _, smp := range x.d.Samples {
+				if smp.Name == name {
+					pd.U = smp.Productions[x.place].Value
+					pd.I = smp.Current
+					pd.Q = smp.Consumption
+					pd.T = smp.Temperature
+				}
 			}
+			return pd
 		}
 	}
 	x.err = fmt.Errorf("измерение %q не было выполнено", name)
@@ -53,7 +56,7 @@ func (x measureData) Measure(name string) prevMeasureData {
 }
 
 type prevMeasureData struct {
-	Value, U, I, Q, T, C float64
+	Value, U, I, Q, T, Pgs float64
 }
 
 var (

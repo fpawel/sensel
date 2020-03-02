@@ -7,18 +7,20 @@ import (
 	"github.com/fpawel/sensel/internal/pkg/must"
 	lua "github.com/yuin/gopher-lua"
 	luar "layeh.com/gopher-luar"
+	"math"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
-type ProductTypes struct {
+type C struct {
 	xs map[string]productType
 	l  *lua.LState
 }
 
-type SampleCalc struct {
-	data.Sample
-	Calc []FloatOk
+type ColumnCalculated struct {
+	Name   string
+	Values []FloatOk
 }
 
 type FloatOk struct {
@@ -26,16 +28,16 @@ type FloatOk struct {
 	Ok    bool
 }
 
-func NewProductTypes(filename string) (ProductTypes, error) {
-	x := ProductTypes{
+func NewProductTypes(filename string) (C, error) {
+	x := C{
 		xs: make(map[string]productType),
 		l:  lua.NewState(),
 	}
 
-	newMeasurement := func(name string, gas int, duration string, Calc calcSamplesFunc) measurement {
+	newMeasurement := func(name string, gas int, duration string, Calc calcSamplesFunc) column {
 		dur, err := time.ParseDuration(duration)
 		must.PanicIf(merry.Prepend(err, "duration"))
-		return measurement{
+		return column{
 			Name:     name,
 			Gas:      gas,
 			Duration: dur,
@@ -43,7 +45,15 @@ func NewProductTypes(filename string) (ProductTypes, error) {
 		}
 	}
 
-	x.l.SetGlobal("product", luar.New(x.l, func(name string, measurements ...measurement) {
+	newColumn := func(name string, Calc calcSamplesFunc) column {
+		return column{
+			Name: name,
+			Gas:  -1,
+			Calc: Calc,
+		}
+	}
+
+	x.l.SetGlobal("product", luar.New(x.l, func(name string, measurements ...column) {
 		if _, f := x.xs[name]; f {
 			x.l.RaiseError("дублирование исполнения %q", name)
 		}
@@ -52,9 +62,10 @@ func NewProductTypes(filename string) (ProductTypes, error) {
 		}
 	}))
 	x.l.SetGlobal("measure", luar.New(x.l, newMeasurement))
+	x.l.SetGlobal("column", luar.New(x.l, newColumn))
 
-	wrapErr := func(err error) (ProductTypes, error) {
-		return ProductTypes{}, merry.Prepend(err, filepath.Base(filename))
+	wrapErr := func(err error) (C, error) {
+		return C{}, merry.Prepend(err, filepath.Base(filename))
 	}
 
 	if err := x.l.DoFile(filename); err != nil {
@@ -63,6 +74,7 @@ func NewProductTypes(filename string) (ProductTypes, error) {
 
 	x.l.SetGlobal("product", lua.LNil)
 	x.l.SetGlobal("measure", lua.LNil)
+	x.l.SetGlobal("column", lua.LNil)
 
 	if err := x.testRandomSamples(); err != nil {
 		return wrapErr(err)
@@ -71,51 +83,72 @@ func NewProductTypes(filename string) (ProductTypes, error) {
 	return x, nil
 }
 
-func (x ProductTypes) CalcSamples(measurement data.Measurement) ([]SampleCalc, error) {
+func (x C) ListProductTypes() (xs []string) {
+	for name := range x.xs {
+		xs = append(xs, name)
+	}
+	sort.Strings(xs)
+	return
+}
+
+func (x C) GetProductTypeByName(name string) (ProductType, bool) {
+	t, f := x.xs[name]
+	if !f {
+		return ProductType{}, false
+	}
+	r := ProductType{Name: name}
+	for _, x := range t.ms {
+		r.Columns = append(r.Columns, Column{
+			Name:     x.Name,
+			Gas:      x.Gas,
+			Duration: x.Duration,
+		})
+	}
+	return r, true
+}
+
+func (x C) CalcSamples(measurement data.Measurement) ([]ColumnCalculated, error) {
 	prodType, okProdType := x.xs[measurement.ProductType]
 	if !okProdType {
 		return nil, fmt.Errorf("исполнение %q не определено", measurement.ProductType)
 	}
 
-	var calculated []SampleCalc
+	calculated := make([]ColumnCalculated, len(prodType.ms))
 
-	for _, smp := range measurement.Samples {
-		smp := smp
-		m, foundMeasurement := prodType.measurementByName(smp.Name)
-		if !foundMeasurement {
-			return nil, fmt.Errorf("измерение %q не задано для исполнения %q", smp.Name, measurement.ProductType)
-		}
-		r := SampleCalc{Sample: smp, Calc: make([]FloatOk, 16)}
-		for place := range r.Calc {
+	for i, m := range prodType.ms {
+		calculated[i].Values = make([]FloatOk, 16)
+
+		for place := range calculated[i].Values {
 			d := measureData{
-				U:           smp.Productions[place].Value,
-				I:           smp.Current,
-				Q:           smp.Consumption,
-				T:           smp.Temperature,
-				prodType:    prodType,
-				calculated:  calculated,
-				place:       place,
-				dataMeasure: measurement,
+				U:          math.NaN(),
+				I:          math.NaN(),
+				Q:          math.NaN(),
+				T:          math.NaN(),
+				prodType:   prodType,
+				calculated: calculated,
+				place:      place,
+				d:          measurement,
 			}
-			r.Calc[place].Float, r.Calc[place].Ok = m.Calc(&d)
+			if smp, smpFound := measurement.Samples.GetSampleByName(m.Name); smpFound {
+				d.U = smp.Productions[place].Value
+				d.I = smp.Current
+				d.Q = smp.Consumption
+				d.T = smp.Temperature
+			}
+			v, ok := m.Calc(&d)
+			calculated[i].Values[place] = FloatOk{
+				Float: v,
+				Ok:    ok,
+			}
 			if d.err != nil {
-				return nil, fmt.Errorf("место %d: расчёт %s: %w", place, smp.Name, d.err)
+				return nil, fmt.Errorf("место %d: расчёт %s: %w", place, m.Name, d.err)
 			}
 		}
-
-		calculated = append(calculated, r)
 	}
 	return calculated, nil
 }
 
-func (x ProductTypes) ListProductTypes() (xs []string) {
-	for name := range x.xs {
-		xs = append(xs, name)
-	}
-	return
-}
-
-func (x ProductTypes) testRandomSamples() error {
+func (x C) testRandomSamples() error {
 	for prodTypeName, prodType := range x.xs {
 		samples := make([]data.Sample, len(prodType.ms)-1)
 		data.RandSamples(samples)
@@ -134,14 +167,14 @@ func (x ProductTypes) testRandomSamples() error {
 }
 
 type productType struct {
-	ms []measurement
+	ms []column
 }
 
-func (x productType) measurementByName(name string) (measurement, bool) {
+func (x productType) measurementByName(name string) (column, bool) {
 	for _, x := range x.ms {
 		if x.Name == name {
 			return x, true
 		}
 	}
-	return measurement{}, false
+	return column{}, false
 }

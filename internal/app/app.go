@@ -2,11 +2,10 @@ package app
 
 import (
 	"context"
-	"fmt"
+	"github.com/fpawel/sensel/internal/calcsens"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/jmoiron/sqlx"
-	"github.com/lxn/walk"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	"os"
@@ -23,16 +22,17 @@ func Main() {
 		}
 	}()
 
-	initProductTypes()
+	exeDir := filepath.Dir(os.Args[0])
 
 	var err error
+	prodTypes, err = calcsens.NewProductTypes(filepath.Join(exeDir, "lua", "sensel.lua"))
 
 	// общий контекст приложения с прерыванием
 	var interrupt context.CancelFunc
 	appCtx, interrupt = context.WithCancel(context.Background())
 
 	// соединение с базой данных
-	dbFilename := filepath.Join(filepath.Dir(os.Args[0]), "sensel.sqlite")
+	dbFilename := filepath.Join(exeDir, "sensel.sqlite")
 	log.Debug("open database: " + dbFilename)
 
 	db, err = data.Open(dbFilename)
@@ -42,6 +42,8 @@ func Main() {
 	initMeasurementViewModel()
 
 	must.PanicIf(newApplicationWindow().Create())
+
+	radioButtonCalc.SetChecked(true)
 
 	if !win.ShowWindow(appWindow.Handle(), win.SW_SHOWMAXIMIZED) {
 		panic("can`t show window")
@@ -63,26 +65,33 @@ func Main() {
 
 // initMeasurementViewModel инициализация модели представления
 func initMeasurementViewModel() {
-	samples := make([]data.Sample, 10)
-	for i := range samples {
-		samples[i].Name = fmt.Sprintf("X%d", i)
+
+	t, _ := prodTypes.GetProductTypeByName(prodTypes.ListProductTypeNames()[0])
+
+	samples := make([]data.Sample, len(t.Columns))
+	for i, m := range t.Columns {
+		samples[i].Name = m.Name
 		samples[i].CreatedAt = time.Now().Add(-time.Minute * time.Duration(i))
 	}
 	data.RandSamples(samples)
 	measurementViewModel = &MeasurementViewModel{
-		M: data.Measurement{
-			Samples: samples,
+		m: data.Measurement{
+			ProductType: t.Name,
+			Samples:     samples,
+			Pgs:         []float64{1, 2, 3, 4, 5},
 		},
 	}
-	for s := range ProductTypes {
-		measurementViewModel.M.ProductType = s
+	measurementViewModel.c, measurementViewModel.calcErr = prodTypes.CalcSamples(measurementViewModel.m)
+	if measurementViewModel.calcErr != nil {
+		panic(measurementViewModel.calcErr)
 	}
 }
 
 var (
-	log                  = structlog.New()
-	db                   *sqlx.DB
-	appCtx               context.Context
-	appWindow            *walk.MainWindow
+	log    = structlog.New()
+	db     *sqlx.DB
+	appCtx context.Context
+
 	measurementViewModel *MeasurementViewModel
+	prodTypes            calcsens.C
 )
