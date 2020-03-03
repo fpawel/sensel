@@ -5,6 +5,7 @@ import (
 	"github.com/fpawel/sensel/internal/calcsens"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
+	"github.com/fpawel/sensel/internal/view"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
@@ -38,10 +39,10 @@ func Main() {
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
+	must.PanicIf(newApplicationWindow().Create())
+
 	// инициализация модели представления
 	initMeasurementViewModel()
-
-	must.PanicIf(newApplicationWindow().Create())
 
 	radioButtonCalc.SetChecked(true)
 
@@ -63,10 +64,13 @@ func Main() {
 	log.Debug("all canceled and closed")
 }
 
-// initMeasurementViewModel инициализация модели представления
+func getMainTableViewModel() *view.MainTableViewModel {
+	return mainTableView.Model().(*view.MainTableViewModel)
+}
+
 func initMeasurementViewModel() {
 
-	t, _ := prodTypes.GetProductTypeByName(prodTypes.ListProductTypeNames()[0])
+	t := prodTypes.GetFirstProductType()
 
 	samples := make([]data.Sample, len(t.Columns))
 	for i, m := range t.Columns {
@@ -74,24 +78,34 @@ func initMeasurementViewModel() {
 		samples[i].CreatedAt = time.Now().Add(-time.Minute * time.Duration(i))
 	}
 	data.RandSamples(samples)
-	measurementViewModel = &MeasurementViewModel{
-		m: data.Measurement{
-			ProductType: t.Name,
-			Samples:     samples,
-			Pgs:         []float64{1, 2, 3, 4, 5},
-		},
+	measurement = data.Measurement{
+		ProductType: t.Name,
+		Samples:     samples,
+		Pgs:         []float64{1, 2, 3, 4, 5},
 	}
-	measurementViewModel.c, measurementViewModel.calcErr = prodTypes.CalcSamples(measurementViewModel.m)
-	if measurementViewModel.calcErr != nil {
-		panic(measurementViewModel.calcErr)
+	view.NewMainTableViewModel(mainTableView)
+	setMeasurementViewModel(measurement)
+}
+
+func setMeasurementViewModel(measurement data.Measurement) {
+	calcColumns, t, err := prodTypes.CalcSamples(measurement)
+	if err != nil {
+		must.PanicIf(labelCalcErr.SetText(err.Error()))
+		labelCalcErr.SetVisible(true)
+	} else {
+		labelCalcErr.SetVisible(false)
 	}
+	getMainTableViewModel().SetViewData(view.MainTableViewData{
+		D:  measurement,
+		Cs: calcColumns,
+		Pt: t,
+	})
 }
 
 var (
-	log    = structlog.New()
-	db     *sqlx.DB
-	appCtx context.Context
-
-	measurementViewModel *MeasurementViewModel
-	prodTypes            calcsens.C
+	log         = structlog.New()
+	db          *sqlx.DB
+	appCtx      context.Context
+	prodTypes   calcsens.C
+	measurement data.Measurement
 )

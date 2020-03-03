@@ -91,29 +91,31 @@ func (x C) ListProductTypes() (xs []string) {
 	return
 }
 
+func (x C) GetFirstProductType() ProductType {
+	for name, x := range x.xs {
+		return x.ProductType(name)
+	}
+	panic("нет ни одного исполнения")
+}
+
 func (x C) GetProductTypeByName(name string) (ProductType, bool) {
 	t, f := x.xs[name]
 	if !f {
 		return ProductType{}, false
 	}
-	r := ProductType{Name: name}
-	for _, x := range t.ms {
-		r.Columns = append(r.Columns, Column{
-			Name:     x.Name,
-			Gas:      x.Gas,
-			Duration: x.Duration,
-		})
-	}
-	return r, true
+	return t.ProductType(name), true
 }
 
-func (x C) CalcSamples(measurement data.Measurement) ([]ColumnCalculated, error) {
+func (x C) CalcSamples(measurement data.Measurement) ([]ColumnCalculated, ProductType, error) {
+
 	prodType, okProdType := x.xs[measurement.ProductType]
 	if !okProdType {
-		return nil, fmt.Errorf("исполнение %q не определено", measurement.ProductType)
+		return nil, ProductType{}, fmt.Errorf("исполнение %q не определено", measurement.ProductType)
 	}
 
 	calculated := make([]ColumnCalculated, len(prodType.ms))
+
+	retProdType := prodType.ProductType(measurement.ProductType)
 
 	for i, m := range prodType.ms {
 		calculated[i].Values = make([]FloatOk, 16)
@@ -141,11 +143,11 @@ func (x C) CalcSamples(measurement data.Measurement) ([]ColumnCalculated, error)
 				Ok:    ok,
 			}
 			if d.err != nil {
-				return nil, fmt.Errorf("место %d: расчёт %s: %w", place, m.Name, d.err)
+				return nil, retProdType, fmt.Errorf("место %d: расчёт %s: %w", place, m.Name, d.err)
 			}
 		}
 	}
-	return calculated, nil
+	return calculated, retProdType, nil
 }
 
 func (x C) testRandomSamples() error {
@@ -156,12 +158,12 @@ func (x C) testRandomSamples() error {
 		for i := range samples {
 			samples[i].Name = prodType.ms[i].Name
 		}
-		_, err := x.CalcSamples(data.Measurement{
+		_, _, err := x.CalcSamples(data.Measurement{
 			ProductType: prodTypeName,
 			Pgs:         []float64{1, 2, 3, 4},
 			Samples:     samples,
 		})
-		must.PanicIf(err)
+		return err
 	}
 	return nil
 }
@@ -177,4 +179,12 @@ func (x productType) measurementByName(name string) (column, bool) {
 		}
 	}
 	return column{}, false
+}
+
+func (x productType) ProductType(name string) ProductType {
+	r := ProductType{Name: name}
+	for _, x := range x.ms {
+		r.Columns = append(r.Columns, x.Column())
+	}
+	return r
 }

@@ -17,7 +17,7 @@ func WidgetsConfig() []Widget {
 	}
 
 	var productTypes []string
-	for _, s := range prodTypes.ListProductTypeNames() {
+	for _, s := range prodTypes.ListProductTypes() {
 		productTypes = append(productTypes, s)
 	}
 	sort.Strings(productTypes)
@@ -45,16 +45,17 @@ func WidgetsConfig() []Widget {
 		}),
 		Label{Text: "Исполнение"},
 		ComboBoxWithList(productTypes, func() string {
-			return measurementViewModel.m.ProductType
+			return measurement.ProductType
 		}, func(s string) {
-			measurementViewModel.m.ProductType = s
+			measurement.ProductType = s
+			setMeasurementViewModel(measurement)
 		}),
 		Label{Text: "Наименование обмера"},
 		LineEdit{
-			Text:     measurementViewModel.m.Name,
+			Text:     measurement.Name,
 			AssignTo: &leMeasurementName,
 			OnTextChanged: func() {
-				measurementViewModel.m.Name = leMeasurementName.Text()
+				measurement.Name = leMeasurementName.Text()
 			},
 		},
 	}

@@ -25,6 +25,14 @@ type measureData struct {
 	err           error
 }
 
+func (x column) Column() Column {
+	return Column{
+		Name:     x.Name,
+		Gas:      x.Gas,
+		Duration: x.Duration,
+	}
+}
+
 func (x measureData) Measure(name string) prevMeasureData {
 	m, foundMeasurement := x.prodType.measurementByName(name)
 	if !foundMeasurement {

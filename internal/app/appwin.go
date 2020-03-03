@@ -70,21 +70,24 @@ func newApplicationWindow() MainWindow {
 						Text:     "Расчёт",
 						Value:    true,
 						OnClicked: func() {
-							measurementViewModel.SetShowCalc(true)
+							getMainTableViewModel().SetShowCalc(true)
 						},
 					},
 					RadioButton{
 						Text:  "Снятие",
 						Value: false,
 						OnClicked: func() {
-							measurementViewModel.SetShowCalc(false)
+							getMainTableViewModel().SetShowCalc(false)
 						},
 					},
 				},
 			},
+			Label{
+				AssignTo:  &labelCalcErr,
+				TextColor: walk.RGB(255, 0, 0),
+			},
 			TableView{
-				Columns:                  measurementViewModel.Columns(),
-				Model:                    measurementViewModel,
+				AssignTo:                 &mainTableView,
 				ColumnsOrderable:         false,
 				ColumnsSizable:           true,
 				LastColumnStretched:      false,
@@ -121,8 +124,12 @@ var (
 	menuStop,
 	menuRunMeasure,
 	menuRunInterrogate *walk.Action
-	radioButtonCalc   *walk.RadioButton
-	appWindow         *walk.MainWindow
+	radioButtonCalc *walk.RadioButton
+	mainTableView   *walk.TableView
+	labelCalcErr    *walk.Label
+
+	appWindow *walk.MainWindow
+
 	wgWork            sync.WaitGroup
 	interruptWorkFunc = func() {}
 )
