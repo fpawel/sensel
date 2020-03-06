@@ -15,14 +15,13 @@ func RandSamples(xs []Sample) {
 	}
 }
 
-func randProductions() []Production {
-	xs := make([]Production, 16)
+func randProductions() (xs [16]Production) {
 	for i := range xs {
 		xs[i].Place = i
 		xs[i].Break = rand.Float64() < 0.1
 		xs[i].Value = rand3()
 	}
-	return xs
+	return
 }
 
 func rand3() float64 {

@@ -5,24 +5,30 @@ import (
 )
 
 type Measurement struct {
+	MeasurementInfo
+	MeasurementData
+}
+
+type MeasurementData struct {
+	Pgs     []float64
+	Samples Samples
+}
+
+type MeasurementInfo struct {
 	MeasurementID int64     `db:"measurement_id"`
 	CreatedAt     time.Time `db:"created_at"`
 	Name          string    `db:"name"`
 	ProductType   string    `db:"product_type"`
-	Pgs           []float64 `db:"-"`
-	Samples       Samples   `db:"-"`
 }
 
 type Sample struct {
-	SampleID    int64        `db:"sample_id"`
-	CreatedAt   time.Time    `db:"created_at"`
-	Name        string       `db:"name"`
-	Gas         int          `db:"gas"`
-	Consumption float64      `db:"consumption"`
-	Temperature float64      `db:"temperature"`
-	Current     float64      `db:"current"`
-	Productions []Production `db:"-"`
-	Logs        []SampleLog  `db:"-"`
+	CreatedAt   time.Time
+	Name        string
+	Gas         int
+	Consumption float64
+	Temperature float64
+	Current     float64
+	Productions [16]Production
 }
 
 type Production struct {

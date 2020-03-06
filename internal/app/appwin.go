@@ -9,6 +9,7 @@ import (
 )
 
 func newApplicationWindow() MainWindow {
+	var toolButtonJournalVisibility *walk.ToolButton
 
 	return MainWindow{
 		AssignTo:   &appWindow,
@@ -65,6 +66,23 @@ func newApplicationWindow() MainWindow {
 				VerticalFixed: true,
 				Layout:        HBox{Alignment: AlignHCenterVCenter},
 				Children: []Widget{
+
+					ToolButton{
+						MinSize:  Size{130, 0},
+						MaxSize:  Size{130, 0},
+						AssignTo: &toolButtonJournalVisibility,
+						Text:     "Показать журнал",
+						OnClicked: func() {
+							var s string
+							if toolButtonJournalVisibility.Text() == "Показать журнал" {
+								s = "Скрыть журнал"
+							} else {
+								s = "Показать журнал"
+							}
+							must.PanicIf(toolButtonJournalVisibility.SetText(s))
+						},
+					},
+
 					RadioButton{
 						AssignTo: &radioButtonCalc,
 						Text:     "Расчёт",
