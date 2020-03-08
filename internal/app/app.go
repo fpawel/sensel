@@ -79,9 +79,13 @@ func initMeasurementViewModel() {
 	}
 	data.RandSamples(samples)
 	measurement = data.Measurement{
-		ProductType: t.Name,
-		Samples:     samples,
-		Pgs:         []float64{1, 2, 3, 4, 5},
+		MeasurementInfo: data.MeasurementInfo{
+			ProductType: t.Name,
+		},
+		MeasurementData: data.MeasurementData{
+			Pgs:     []float64{1, 2, 3, 4, 5},
+			Samples: samples,
+		},
 	}
 	view.NewMainTableViewModel(mainTableView)
 	setMeasurementViewModel(measurement)

@@ -159,9 +159,13 @@ func (x C) testRandomSamples() error {
 			samples[i].Name = prodType.ms[i].Name
 		}
 		_, _, err := x.CalcSamples(data.Measurement{
-			ProductType: prodTypeName,
-			Pgs:         []float64{1, 2, 3, 4},
-			Samples:     samples,
+			MeasurementInfo: data.MeasurementInfo{
+				ProductType: prodTypeName,
+			},
+			MeasurementData: data.MeasurementData{
+				Pgs:     []float64{1, 2, 3, 4},
+				Samples: samples,
+			},
 		})
 		return err
 	}
