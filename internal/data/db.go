@@ -20,6 +20,22 @@ func Open(filename string) (*sqlx.DB, error) {
 	return db, nil
 }
 
+func GetLastMeasurement(db *sqlx.DB, m *Measurement) error {
+	var x struct {
+		MeasurementInfo
+		Data []byte `db:"data"`
+	}
+	const query = `SELECT * FROM measurement ORDER BY created_at DESC LIMIT 1`
+	if err := db.Get(&x, query); err != nil {
+		return err
+	}
+	m.MeasurementInfo = x.MeasurementInfo
+	if err := json.Unmarshal(x.Data, &m.MeasurementData); err != nil {
+		return err
+	}
+	return nil
+}
+
 func GetMeasurement(db *sqlx.DB, m *Measurement) error {
 	var x struct {
 		MeasurementInfo
@@ -92,9 +108,10 @@ PRAGMA encoding = 'UTF-8';
 CREATE TABLE IF NOT EXISTS measurement
 (
     measurement_id INTEGER PRIMARY KEY,
-    created_at     TIMESTAMP NOT NULL DEFAULT (datetime('now', 'localtime')) UNIQUE,
+    created_at     TIMESTAMP NOT NULL,
     product_type   TEXT      NOT NULL DEFAULT '',
     name           TEXT      NOT NULL DEFAULT '',
     data           BLOB      NOT NULL
 );
+CREATE INDEX IF NOT EXISTS index_measurement_created_at ON measurement(created_at);
 `

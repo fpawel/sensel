@@ -11,7 +11,6 @@ import (
 	"github.com/powerman/structlog"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 func Main() {
@@ -42,7 +41,10 @@ func Main() {
 	must.PanicIf(newApplicationWindow().Create())
 
 	// инициализация модели представления
-	initMeasurementViewModel()
+	var measurement data.Measurement
+	_ = data.GetLastMeasurement(db, &measurement)
+	view.NewMainTableViewModel(mainTableView)
+	setMeasurementViewModel(measurement)
 
 	radioButtonCalc.SetChecked(true)
 
@@ -68,29 +70,6 @@ func getMainTableViewModel() *view.MainTableViewModel {
 	return mainTableView.Model().(*view.MainTableViewModel)
 }
 
-func initMeasurementViewModel() {
-
-	t := prodTypes.GetFirstProductType()
-
-	samples := make([]data.Sample, len(t.Columns))
-	for i, m := range t.Columns {
-		samples[i].Name = m.Name
-		samples[i].CreatedAt = time.Now().Add(-time.Minute * time.Duration(i))
-	}
-	data.RandSamples(samples)
-	measurement = data.Measurement{
-		MeasurementInfo: data.MeasurementInfo{
-			ProductType: t.Name,
-		},
-		MeasurementData: data.MeasurementData{
-			Pgs:     []float64{1, 2, 3, 4, 5},
-			Samples: samples,
-		},
-	}
-	view.NewMainTableViewModel(mainTableView)
-	setMeasurementViewModel(measurement)
-}
-
 func setMeasurementViewModel(measurement data.Measurement) {
 	calcColumns, t, err := prodTypes.CalcSamples(measurement)
 	if err != nil {
@@ -107,9 +86,8 @@ func setMeasurementViewModel(measurement data.Measurement) {
 }
 
 var (
-	log         = structlog.New()
-	db          *sqlx.DB
-	appCtx      context.Context
-	prodTypes   calcsens.C
-	measurement data.Measurement
+	log       = structlog.New()
+	db        *sqlx.DB
+	appCtx    context.Context
+	prodTypes calcsens.C
 )

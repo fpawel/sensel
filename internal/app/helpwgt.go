@@ -3,6 +3,7 @@ package app
 import (
 	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/sensel/internal/cfg"
+	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
@@ -26,6 +27,8 @@ func WidgetsConfig() []Widget {
 		leMeasurementName *walk.LineEdit
 	)
 
+	measurement := getMainTableViewModel().GetMeasurement()
+
 	return []Widget{
 		Label{Text: "СОМ порт вольтметра"},
 		ComboBoxComport(func() string {
@@ -45,9 +48,11 @@ func WidgetsConfig() []Widget {
 		}),
 		Label{Text: "Исполнение"},
 		ComboBoxWithList(productTypes, func() string {
-			return measurement.ProductType
+			//return measurement.ProductType
+			return getMainTableViewModel().GetMeasurement().ProductType
 		}, func(s string) {
 			measurement.ProductType = s
+			must.PanicIf(data.SaveMeasurement(db, &measurement))
 			setMeasurementViewModel(measurement)
 		}),
 		Label{Text: "Наименование обмера"},
@@ -56,6 +61,7 @@ func WidgetsConfig() []Widget {
 			AssignTo: &leMeasurementName,
 			OnTextChanged: func() {
 				measurement.Name = leMeasurementName.Text()
+				must.PanicIf(data.SaveMeasurement(db, &measurement))
 			},
 		},
 	}

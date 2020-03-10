@@ -34,6 +34,10 @@ func (x *MainTableViewModel) ProductType() string {
 	return x.d.Pt.Name
 }
 
+func (x *MainTableViewModel) GetMeasurement() data.Measurement {
+	return x.d.D
+}
+
 func (x *MainTableViewModel) SetViewData(d MainTableViewData) {
 	x.d = d
 	x.showCalc = true
