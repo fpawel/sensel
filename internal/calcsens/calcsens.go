@@ -51,7 +51,7 @@ func (x measureData) Measure(name string) prevMeasureData {
 			for _, smp := range x.d.Samples {
 				if smp.Name == name {
 					pd.U = smp.Productions[x.place].Value
-					pd.I = smp.Current
+					pd.I = smp.CurrentBar
 					pd.Q = smp.Consumption
 					pd.T = smp.Temperature
 				}

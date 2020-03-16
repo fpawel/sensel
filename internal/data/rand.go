@@ -10,7 +10,7 @@ func RandSamples(xs []Sample) {
 	for i := range xs {
 		xs[i].Productions = randProductions()
 		xs[i].Temperature = rand3()
-		xs[i].Current = rand3()
+		xs[i].CurrentBar = rand3()
 		xs[i].Consumption = rand3()
 	}
 }

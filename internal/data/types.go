@@ -27,7 +27,8 @@ type Sample struct {
 	Gas         int
 	Consumption float64
 	Temperature float64
-	Current     float64
+	TensionBar  float64
+	CurrentBar  float64
 	Productions [16]Production
 }
 
@@ -35,12 +36,6 @@ type Production struct {
 	Place int     `db:"int"`
 	Value float64 `db:"value"`
 	Break bool    `db:"break"`
-}
-
-type SampleLog struct {
-	CreatedAt time.Time `db:"created_at"`
-	Ok        bool      `db:"ok"`
-	Message   string    `db:"message"`
 }
 
 type Samples []Sample

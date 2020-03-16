@@ -133,7 +133,7 @@ func (x C) CalcSamples(measurement data.Measurement) ([]ColumnCalculated, Produc
 			}
 			if smp, smpFound := measurement.Samples.GetSampleByName(m.Name); smpFound {
 				d.U = smp.Productions[place].Value
-				d.I = smp.Current
+				d.I = smp.CurrentBar
 				d.Q = smp.Consumption
 				d.T = smp.Temperature
 			}

@@ -58,7 +58,10 @@ var measurementRows = func() (xs []measurementRow) {
 		return smp(x, col).Consumption
 	})
 	appendResult("Ток", func(x M, col int) interface{} {
-		return smp(x, col).Current
+		return smp(x, col).CurrentBar
+	})
+	appendResult("Напряжение", func(x M, col int) interface{} {
+		return smp(x, col).Temperature
 	})
 	appendResult("Температура", func(x M, col int) interface{} {
 		return smp(x, col).Temperature

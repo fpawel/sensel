@@ -9,8 +9,6 @@ import (
 )
 
 func newApplicationWindow() MainWindow {
-	var toolButtonJournalVisibility *walk.ToolButton
-
 	return MainWindow{
 		AssignTo:   &appWindow,
 		Title:      "ЧЭ лаборатория 74",
@@ -67,19 +65,11 @@ func newApplicationWindow() MainWindow {
 				Layout:        HBox{Alignment: AlignHCenterVCenter},
 				Children: []Widget{
 
-					ToolButton{
-						MinSize:  Size{130, 0},
-						MaxSize:  Size{130, 0},
-						AssignTo: &toolButtonJournalVisibility,
-						Text:     "Показать журнал",
-						OnClicked: func() {
-							var s string
-							if toolButtonJournalVisibility.Text() == "Показать журнал" {
-								s = "Скрыть журнал"
-							} else {
-								s = "Показать журнал"
-							}
-							must.PanicIf(toolButtonJournalVisibility.SetText(s))
+					CheckBox{
+						Text:    "Журнал",
+						Checked: false,
+						OnCheckedChanged: func() {
+							groupBoxJournal.SetVisible(!groupBoxJournal.Visible())
 						},
 					},
 
@@ -104,13 +94,42 @@ func newApplicationWindow() MainWindow {
 				AssignTo:  &labelCalcErr,
 				TextColor: walk.RGB(255, 0, 0),
 			},
-			TableView{
-				AssignTo:                 &mainTableView,
-				ColumnsOrderable:         false,
-				ColumnsSizable:           true,
-				LastColumnStretched:      false,
-				MultiSelection:           true,
-				NotSortableByHeaderClick: true,
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					GroupBox{
+						AssignTo: &groupBoxJournal,
+						Visible:  false,
+						Title:    "Журнал",
+						MinSize:  Size{400, 0},
+						MaxSize:  Size{400, 0},
+						Layout:   Grid{},
+						Children: []Widget{
+							TableView{
+								ColumnsOrderable:         false,
+								ColumnsSizable:           true,
+								LastColumnStretched:      false,
+								MultiSelection:           true,
+								NotSortableByHeaderClick: true,
+							},
+						},
+					},
+
+					GroupBox{
+						Title:  "Обмер",
+						Layout: Grid{},
+						Children: []Widget{
+							TableView{
+								AssignTo:                 &mainTableView,
+								ColumnsOrderable:         false,
+								ColumnsSizable:           true,
+								LastColumnStretched:      false,
+								MultiSelection:           true,
+								NotSortableByHeaderClick: true,
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -145,6 +164,7 @@ var (
 	radioButtonCalc *walk.RadioButton
 	mainTableView   *walk.TableView
 	labelCalcErr    *walk.Label
+	groupBoxJournal *walk.GroupBox
 
 	appWindow *walk.MainWindow
 
