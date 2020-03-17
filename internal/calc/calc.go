@@ -1,16 +1,29 @@
 package calc
 
-import "time"
+import (
+	lua "github.com/yuin/gopher-lua"
+	"time"
+)
 
-type ProductType struct {
-	Device   string
-	Type     string
-	Measures []Measure
+type C struct {
+	l *lua.LState
+	d map[string]map[string]ProductType
 }
 
-type Measure struct {
+type ProductType struct {
+	Samples   []Sample
+	Calculate func(U, I, T, C []float64) []NameValueOk
+}
+
+type Sample struct {
 	Gas      int
 	Tension  float64
 	Current  float64
 	Duration time.Duration
+}
+
+type NameValueOk struct {
+	Name  string
+	Value float64
+	Ok    bool
 }
