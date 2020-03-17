@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"github.com/fpawel/sensel/internal/calcsens"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/fpawel/sensel/internal/view"
@@ -25,7 +24,7 @@ func Main() {
 	exeDir := filepath.Dir(os.Args[0])
 
 	var err error
-	prodTypes, err = calcsens.NewProductTypes(filepath.Join(exeDir, "lua", "sensel.lua"))
+	//prodTypes, err = calcsens.NewProductTypes(filepath.Join(exeDir, "lua", "sensel.lua"))
 
 	// общий контекст приложения с прерыванием
 	var interrupt context.CancelFunc
@@ -71,23 +70,20 @@ func getMainTableViewModel() *view.MainTableViewModel {
 }
 
 func setMeasurementViewModel(measurement data.Measurement) {
-	calcColumns, t, err := prodTypes.CalcSamples(measurement)
-	if err != nil {
-		must.PanicIf(labelCalcErr.SetText(err.Error()))
-		labelCalcErr.SetVisible(true)
-	} else {
-		labelCalcErr.SetVisible(false)
-	}
+	//calcColumns, t, err := prodTypes.CalcSamples(measurement)
+	//if err != nil {
+	//	must.PanicIf(labelCalcErr.SetText(err.Error()))
+	//	labelCalcErr.SetVisible(true)
+	//} else {
+	//	labelCalcErr.SetVisible(false)
+	//}
 	getMainTableViewModel().SetViewData(view.MainTableViewData{
-		D:  measurement,
-		Cs: calcColumns,
-		Pt: t,
+		D: measurement,
 	})
 }
 
 var (
-	log       = structlog.New()
-	db        *sqlx.DB
-	appCtx    context.Context
-	prodTypes calcsens.C
+	log    = structlog.New()
+	db     *sqlx.DB
+	appCtx context.Context
 )

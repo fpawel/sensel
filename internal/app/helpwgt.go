@@ -18,10 +18,10 @@ func WidgetsConfig() []Widget {
 	}
 
 	var productTypes []string
-	for _, s := range prodTypes.ListProductTypes() {
-		productTypes = append(productTypes, s)
-	}
-	sort.Strings(productTypes)
+	//for _, s := range prodTypes.ListProductTypes() {
+	//	productTypes = append(productTypes, s)
+	//}
+	//sort.Strings(productTypes)
 
 	var (
 		leMeasurementName *walk.LineEdit
@@ -46,15 +46,25 @@ func WidgetsConfig() []Widget {
 				c.Gas.Comport = s
 			})
 		}),
-		Label{Text: "Исполнение"},
+
+		Label{Text: "Прибор"},
 		ComboBoxWithList(productTypes, func() string {
-			//return measurement.ProductType
-			return getMainTableViewModel().GetMeasurement().ProductType
+			return getMainTableViewModel().GetMeasurement().Device
 		}, func(s string) {
-			measurement.ProductType = s
+			measurement.Device = s
 			must.PanicIf(data.SaveMeasurement(db, &measurement))
 			setMeasurementViewModel(measurement)
 		}),
+
+		Label{Text: "Тип"},
+		ComboBoxWithList(productTypes, func() string {
+			return getMainTableViewModel().GetMeasurement().Kind
+		}, func(s string) {
+			measurement.Kind = s
+			must.PanicIf(data.SaveMeasurement(db, &measurement))
+			setMeasurementViewModel(measurement)
+		}),
+
 		Label{Text: "Наименование обмера"},
 		LineEdit{
 			Text:     measurement.Name,
@@ -83,7 +93,7 @@ func DialogAppConfig() Dialog {
 
 func ComboBoxWithList(values []string, getFunc func() string, setFunc func(string)) ComboBox {
 	var cb *walk.ComboBox
-	var n int
+	n := -1
 	for i, s := range values {
 		if s == getFunc() {
 			n = i

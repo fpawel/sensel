@@ -9,9 +9,9 @@ import (
 func RandSamples(xs []Sample) {
 	for i := range xs {
 		xs[i].Productions = randProductions()
-		xs[i].Temperature = rand3()
-		xs[i].CurrentBar = rand3()
-		xs[i].Consumption = rand3()
+		xs[i].T = rand3()
+		xs[i].I = rand3()
+		xs[i].Q = rand3()
 	}
 }
 

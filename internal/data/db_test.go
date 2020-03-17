@@ -25,8 +25,9 @@ func TestCRUD(t *testing.T) {
 
 	m.Pgs = []float64{6, 7, 8, 9}
 	m.Name = "000000"
-	m.ProductType = "111111"
-	m.Samples = make(Samples, 10)
+	m.Device = "111111"
+	m.Kind = "222222"
+	m.Samples = make([]Sample, 10)
 	RandSamples(m.Samples)
 	Assert.NoError(SaveMeasurement(db, &m))
 
@@ -57,16 +58,17 @@ func simpleMeasurement1(createdAt time.Time) Measurement {
 		MeasurementInfo: MeasurementInfo{
 			MeasurementID: 0,
 			Name:          "abc",
-			ProductType:   "СГГ-1",
+			Device:        "СГГ-1",
+			Kind:          "измерительный",
 			CreatedAt:     createdAt,
 		},
 		MeasurementData: MeasurementData{
 			Pgs: []float64{1, 2, 3, 4},
 			Samples: []Sample{
-				newSample("R0A"),
-				newSample("Uр"),
-				newSample("T20A"),
-				newSample("U20A"),
+				newSample(),
+				newSample(),
+				newSample(),
+				newSample(),
 			},
 		},
 	}
@@ -77,23 +79,24 @@ func simpleMeasurement2(createdAt time.Time) Measurement {
 		MeasurementInfo: MeasurementInfo{
 			MeasurementID: 0,
 			Name:          "def",
-			ProductType:   "СТМ-10 СКДМ",
+			Device:        "СТМ-10 СКДМ",
+			Kind:          "сравнительный",
 			CreatedAt:     createdAt,
 		},
 		MeasurementData: MeasurementData{
 			Pgs: []float64{1, 2, 3, 4},
 			Samples: []Sample{
-				newSample("X5"),
-				newSample("X6"),
+				newSample(),
+				newSample(),
 			},
 		},
 	}
 }
 
-func newSample(name string) Sample {
+func newSample() Sample {
 	return Sample{
-		Name:        name,
 		Productions: randProductions(),
+		CreatedAt:   time.Now(),
 	}
 }
 

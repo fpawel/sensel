@@ -1,66 +1,41 @@
---[[
+-- ГКС платины
+local gammaPlatinum = 0.00385
 
-Функция product определяет тип ЧЕ:
-    product(name, measurements...)
-        name - строка, наименование типа ЧЭ
-        measurements - список измерений, которые должны быть выполнены для данного типа ЧЭ.
-            Объекты в списке measurements разделены запятыми и создаются в результате вызова функции measure.
+-- нижний концентрационный предел распространения пламени CH4, проценты объёмных долей
+local lowerFlammabilityLimitCH4 = 4.4
 
-Функция measure определяет измерение параметра ЧЭ и добавляет колонку в итоговую таблицу обмера:
-    measure(name, gas, duration, calc)
-        name - строка, наименование измерения, используемое при расчёте
-        gas - целое число, номер газового клапана, который будет открыт перед измерением
-        duration - строка, длительность продувки газа.
-            Строка длительности - это знаковая последовательность десятичных чисел,
-            каждое из которых содержит необязательную дробь и суффикс единицы времени,
-            например "300ms", "-1.5h" или "2h45m".
-            Допустимые единицы времени:
-                "ns", "us" (или "µs"), "ms", "s", "m", "h".
-        calc(x, prev) - функция, возвращая выводимое в итоговую таблицу значение.
-            обект x содержит:
-                поля, значения которых получены при измерении name:
-                    x.U - измеренное напряжения ЧЭ
-                    x.Q - измеренный расхода газа
-                    x.I - измеренный ток
-                    x.T - измеренная температура
-                    x.C - концентрация ПГС
-                метод x:Measure(prevName) - функцию, возвращающую результат y передыдущего измереня:
-                    prevName - наименование предыдущего измерения
-                    объект y, возвращаемый функцией x:Measure(prevName), представляет собой
-                    результат передыдущего измерения prevName и содержит поля:
-                        y.U, y.Q, y.I, y.T, y.C - аналогично объекту x
-                        y.Value - расчитанное значение из итоговой таблицы
---]]
+device('СГГ-1',
+        product('измерительный',
+                measure(
+                        sample(1, "1m", 5, 10),
+                        sample(2, "1m30s", 105, 50),
+                        sample(2, "1m30s", 105, 50),
+                        sample(2, "1m30s", 105, 50)
+                ),
+                function(U, I, T, C)
+                    local R0 = U[1] / (I[1] * (1 + gammaPlatinum * T[1]))
 
-product('СГГ-1',
+                    local Ur = U[2]
+                    local Tch = (Ur / (I[2] * R0) - 1) / gammaPlatinum
+                    local Tch20 = Tch - T[2] + 20
+                    local B = (Tch - T[2]) / (I[2] * I[2])
 
-        measure("R0A", 1, "1m", function(x)
-            return x.I / x.U, true
-        end),
+                    local Ugs = U[3]
+                    local K = (lowerFlammabilityLimitCH4 / 100) * (Ugs - Ur) / C[3]
+                    local D = (U[4] - Ugs) / (Ugs - Ur)
 
-        measure("Uр", 0, "0m", function(x)
-            return x:Measure('R0A').Value, true
-        end),
+                    return columns(
+                            column("R0", R0, R0 >= 6.7 and R0 <= 7.3),
 
-        measure("T20A", 1, "1m", function(x)
-            local R0A = x:Measure('R0A').Value
-            local R = x.U / x.I
-            return x.T + (R0A / R + 1), true
-        end),
+                            column("Ur", Ur, Ur >= 1.75 and Ur <= 2.05),
+                            column("Tch", Tch, true),
+                            column("Tch20", Tch20, true),
+                            column("B", B, B >= 35000 and B <= 38000),
 
-        measure("U20A", 1, "1m", function(x)
-            local R = x:Measure('T20A').Value
-            return x.I * R, true
-        end)
+                            column("Uгс", Ugs, true),
+                            column("K", K, K >= 3 and K <= 6),
+                            column("D", D, true)
+                    )
+                end
+        )
 )
-
-product('СТМ-10 СКДМ',
-        measure("X5", 1, "1m", function(x)
-            return x.U / 2 + x.I + x.Q + x.T, true
-        end),
-        measure("X6", 1, "1m", function(x)
-            local x5 = x:Measure('X5')
-            return x.U + x.I + x.Q + x.T + x5.Value + x5.I + x5.Q + x5.T, true
-        end)
-)
-

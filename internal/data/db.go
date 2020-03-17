@@ -55,9 +55,9 @@ func GetMeasurement(db *sqlx.DB, m *Measurement) error {
 
 func SaveMeasurement(db *sqlx.DB, m *Measurement) error {
 	const query = `
-INSERT INTO measurement (measurement_id, created_at, product_type, name, data)  
-VALUES (?, ?, ?, ?, ?)
-ON CONFLICT (measurement_id) DO UPDATE SET product_type = ?, name=?, data=?
+INSERT INTO measurement (measurement_id, created_at, device, kind, name, data)  
+VALUES (:measurement_id, :created_at, :device, :kind, :name, :data)
+ON CONFLICT (measurement_id) DO UPDATE SET device = :device, kind = :kind, name=:name, data=:data
 `
 	b, err := json.Marshal(m.MeasurementData)
 	if err != nil {
@@ -69,9 +69,14 @@ ON CONFLICT (measurement_id) DO UPDATE SET product_type = ?, name=?, data=?
 		measurementID = m.MeasurementID
 	}
 
-	r, err := db.Exec(query, measurementID, m.CreatedAt,
-		m.ProductType, m.Name, b,
-		m.ProductType, m.Name, b)
+	r, err := db.NamedExec(query, map[string]interface{}{
+		"measurement_id": measurementID,
+		"created_at":     m.CreatedAt,
+		"device":         m.Device,
+		"kind":           m.Kind,
+		"name":           m.Name,
+		"data":           b,
+	})
 	if err != nil {
 		return err
 	}
@@ -108,10 +113,10 @@ PRAGMA encoding = 'UTF-8';
 CREATE TABLE IF NOT EXISTS measurement
 (
     measurement_id INTEGER PRIMARY KEY,
-    created_at     TIMESTAMP NOT NULL,
-    product_type   TEXT      NOT NULL DEFAULT '',
+    created_at     TIMESTAMP NOT NULL UNIQUE,
+    device         TEXT      NOT NULL DEFAULT '',
+    kind           TEXT      NOT NULL DEFAULT '',
     name           TEXT      NOT NULL DEFAULT '',
     data           BLOB      NOT NULL
 );
-CREATE INDEX IF NOT EXISTS index_measurement_created_at ON measurement(created_at);
 `

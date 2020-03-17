@@ -3,7 +3,6 @@ package view
 import (
 	"fmt"
 	"github.com/fpawel/sensel/internal/data"
-	"math"
 )
 
 type measurementRow struct {
@@ -28,20 +27,17 @@ var measurementRows = func() (xs []measurementRow) {
 		return x.d.D.Samples[col-1]
 	}
 
-	fmtNoNaN := func(v float64) interface{} {
-		if math.IsNaN(v) {
-			return ""
-		}
-		return v
-	}
+	//fmtNoNaN := func(v float64) interface{} {
+	//	if math.IsNaN(v) {
+	//		return ""
+	//	}
+	//	return v
+	//}
 
 	for i := 0; i < 16; i++ {
 		i := i
 		appendResult(fmt.Sprintf("%d", i), func(x M, col int) interface{} {
 			if x.showCalc {
-				if col-1 < len(x.d.Cs) {
-					return fmtNoNaN(x.d.Cs[col-1].Values[i].Float)
-				}
 				return ""
 			}
 			return smp(x, col).Productions[i].Value
@@ -55,16 +51,16 @@ var measurementRows = func() (xs []measurementRow) {
 		return smp.Gas
 	})
 	appendResult("Расход", func(x M, col int) interface{} {
-		return smp(x, col).Consumption
+		return smp(x, col).Q
 	})
 	appendResult("Ток", func(x M, col int) interface{} {
-		return smp(x, col).CurrentBar
+		return smp(x, col).I
 	})
 	appendResult("Напряжение", func(x M, col int) interface{} {
-		return smp(x, col).Temperature
+		return smp(x, col).T
 	})
 	appendResult("Температура", func(x M, col int) interface{} {
-		return smp(x, col).Temperature
+		return smp(x, col).T
 	})
 	appendResult("Время", func(x M, col int) interface{} {
 		return smp(x, col).CreatedAt.Format("15:04:05")

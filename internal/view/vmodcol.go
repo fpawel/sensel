@@ -1,6 +1,7 @@
 package view
 
 import (
+	"fmt"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	. "github.com/lxn/walk/declarative"
 )
@@ -22,18 +23,12 @@ func (x *MainTableViewModel) columns() (xs []TableViewColumn) {
 	})
 
 	if x.showCalc {
-		for _, m := range x.d.Pt.Columns {
-			appendResult(TableViewColumn{
-				Name:  m.Name,
-				Title: m.Name,
-			})
-		}
 		return
 	}
-	for _, smp := range x.d.D.Samples {
+	for i := range x.d.D.Samples {
 		appendResult(TableViewColumn{
-			Name:  smp.Name,
-			Title: smp.Name,
+			Name:  fmt.Sprintf("column%d", i),
+			Title: fmt.Sprintf("%d", i+1),
 		})
 	}
 	return

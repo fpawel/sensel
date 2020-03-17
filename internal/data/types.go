@@ -11,24 +11,24 @@ type Measurement struct {
 
 type MeasurementData struct {
 	Pgs     []float64
-	Samples Samples
+	Samples []Sample
 }
 
 type MeasurementInfo struct {
 	MeasurementID int64     `db:"measurement_id"`
 	CreatedAt     time.Time `db:"created_at"`
 	Name          string    `db:"name"`
-	ProductType   string    `db:"product_type"`
+	Device        string    `db:"device"`
+	Kind          string    `db:"kind"`
 }
 
 type Sample struct {
 	CreatedAt   time.Time
-	Name        string
 	Gas         int
-	Consumption float64
-	Temperature float64
-	TensionBar  float64
-	CurrentBar  float64
+	Q           float64
+	T           float64
+	U           float64
+	I           float64
 	Productions [16]Production
 }
 
@@ -36,16 +36,4 @@ type Production struct {
 	Place int     `db:"int"`
 	Value float64 `db:"value"`
 	Break bool    `db:"break"`
-}
-
-type Samples []Sample
-
-func (x Samples) GetSampleByName(name string) (Sample, bool) {
-	for _, smp := range x {
-		if smp.Name == name {
-			return smp, true
-		}
-	}
-	return Sample{}, false
-
 }

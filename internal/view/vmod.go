@@ -1,7 +1,6 @@
 package view
 
 import (
-	"github.com/fpawel/sensel/internal/calcsens"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
@@ -17,9 +16,7 @@ type MainTableViewModel struct {
 }
 
 type MainTableViewData struct {
-	D  data.Measurement
-	Cs []calcsens.ColumnCalculated
-	Pt calcsens.ProductType
+	D data.Measurement
 }
 
 func NewMainTableViewModel(tv *walk.TableView) *MainTableViewModel {
@@ -30,8 +27,12 @@ func NewMainTableViewModel(tv *walk.TableView) *MainTableViewModel {
 	return x
 }
 
-func (x *MainTableViewModel) ProductType() string {
-	return x.d.Pt.Name
+func (x *MainTableViewModel) Device() string {
+	return x.d.D.Device
+}
+
+func (x *MainTableViewModel) Kind() string {
+	return x.d.D.Kind
 }
 
 func (x *MainTableViewModel) GetMeasurement() data.Measurement {
@@ -64,9 +65,7 @@ func (x *MainTableViewModel) Value(row, col int) interface{} {
 		return mRo.Title
 	}
 	if x.showCalc {
-		if col-1 >= len(x.d.Cs) {
-			return ""
-		}
+		return ""
 	} else {
 		if col-1 >= len(x.d.D.Samples) {
 			return ""
