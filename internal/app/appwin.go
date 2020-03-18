@@ -2,13 +2,26 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"github.com/fpawel/sensel/internal/cfg"
+	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
+	"github.com/fpawel/sensel/internal/view/viewarch"
+	"github.com/fpawel/sensel/internal/view/viewcalc"
+	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 	"sync"
 )
 
 func newApplicationWindow() MainWindow {
+
+	updCfg := func(f func(c *cfg.Config)) {
+		c := cfg.Get()
+		f(&c)
+		must.PanicIf(cfg.Set(c))
+	}
+
 	return MainWindow{
 		AssignTo:   &appWindow,
 		Title:      "ЧЭ лаборатория 74",
@@ -44,56 +57,25 @@ func newApplicationWindow() MainWindow {
 				},
 			},
 			Action{
-				Text: "Настройки",
+				Text: "Журнал",
 				OnTriggered: func() {
-					_, err := DialogAppConfig().Run(appWindow)
-					must.PanicIf(err)
+					groupBoxJournal.SetVisible(!groupBoxJournal.Visible())
 				},
-			},
-			Menu{
-				Text: "Конфигурация",
-			},
-			Menu{
-				Text: "Сценарий",
 			},
 		},
 		Children: []Widget{
-			ScrollView{
-				MaxSize:       Size{Height: 50, Width: 0},
-				MinSize:       Size{Height: 50, Width: 0},
-				VerticalFixed: true,
-				Layout:        HBox{Alignment: AlignHCenterVCenter},
-				Children: []Widget{
 
-					CheckBox{
-						Text:    "Журнал",
-						Checked: false,
-						OnCheckedChanged: func() {
-							groupBoxJournal.SetVisible(!groupBoxJournal.Visible())
-						},
-					},
+			//ScrollView{
+			//	MaxSize:       Size{Height: 30, Width: 0},
+			//	MinSize:       Size{Height: 30, Width: 0},
+			//	VerticalFixed: true,
+			//	Layout: HBox{
+			//		Alignment: AlignHCenterVCenter,
+			//		MarginsZero: true,
+			//	},
+			//	Children: []Widget{},
+			//},
 
-					RadioButton{
-						AssignTo: &radioButtonCalc,
-						Text:     "Расчёт",
-						Value:    true,
-						OnClicked: func() {
-							getMainTableViewModel().SetShowCalc(true)
-						},
-					},
-					RadioButton{
-						Text:  "Снятие",
-						Value: false,
-						OnClicked: func() {
-							getMainTableViewModel().SetShowCalc(false)
-						},
-					},
-				},
-			},
-			Label{
-				AssignTo:  &labelCalcErr,
-				TextColor: walk.RGB(255, 0, 0),
-			},
 			Composite{
 				Layout: HBox{},
 				Children: []Widget{
@@ -101,31 +83,182 @@ func newApplicationWindow() MainWindow {
 						AssignTo: &groupBoxJournal,
 						Visible:  false,
 						Title:    "Журнал",
-						MinSize:  Size{400, 0},
-						MaxSize:  Size{400, 0},
-						Layout:   Grid{},
+						Layout:   Grid{MarginsZero: true, SpacingZero: true},
 						Children: []Widget{
 							TableView{
+								AssignTo:                 &tableViewArch,
+								MaxSize:                  Size{500, 0},
+								MinSize:                  Size{500, 0},
 								ColumnsOrderable:         false,
 								ColumnsSizable:           true,
-								LastColumnStretched:      false,
+								LastColumnStretched:      true,
 								MultiSelection:           true,
 								NotSortableByHeaderClick: true,
+								Model:                    new(viewarch.TableViewModel),
+								Columns: []TableViewColumn{
+									{
+										Title: "№",
+										Width: 40,
+									},
+									{
+										Title: "Год",
+										Width: 60,
+									},
+									{
+										Title: "Месяц",
+										Width: 60,
+									},
+									{
+										Title: "День",
+										Width: 60,
+									},
+									{
+										Title: "Время",
+										Width: 60,
+									},
+									{
+										Title: "Исполнение",
+									},
+									{
+										Title: "Наименование",
+									},
+								},
+								OnCurrentIndexChanged: func() {
+									archive := getArchiveTableViewModel().ViewData()
+									n := tableViewArch.CurrentIndex()
+									if n < 0 || n >= len(archive) {
+										return
+									}
+									var m data.Measurement
+									m.MeasurementID = archive[n].MeasurementID
+									must.PanicIf(data.GetMeasurement(db, &m))
+									setMeasurement(m)
+								},
 							},
 						},
 					},
 
-					GroupBox{
-						Title:  "Обмер",
-						Layout: Grid{},
+					TabWidget{
+						ContentMarginsZero: true,
+						Pages: []TabPage{
+							{
+								Title: "Снятие",
+								Content: TableView{
+									AssignTo:                 &tableViewMeasure,
+									ColumnsOrderable:         false,
+									ColumnsSizable:           true,
+									LastColumnStretched:      false,
+									MultiSelection:           true,
+									NotSortableByHeaderClick: true,
+								},
+							},
+							{
+								Title: "Расчёт",
+								Content: Composite{
+									Layout: VBox{
+										SpacingZero: true,
+										MarginsZero: true,
+									},
+									Children: []Widget{
+										TableView{
+											AssignTo:                 &tableViewCalc,
+											ColumnsOrderable:         false,
+											ColumnsSizable:           true,
+											LastColumnStretched:      false,
+											MultiSelection:           true,
+											NotSortableByHeaderClick: true,
+										},
+										Label{
+											AssignTo:  &labelCalcErr,
+											TextColor: walk.RGB(255, 0, 0),
+										},
+									},
+								},
+							},
+						},
+					},
+
+					ScrollView{
+						MaxSize:         Size{Height: 0, Width: 200},
+						MinSize:         Size{Height: 0, Width: 200},
+						HorizontalFixed: true,
+						Layout: VBox{
+							Alignment: AlignHCenterVCenter,
+							//SpacingZero:true,
+							MarginsZero: true,
+						},
 						Children: []Widget{
-							TableView{
-								AssignTo:                 &mainTableView,
-								ColumnsOrderable:         false,
-								ColumnsSizable:           true,
-								LastColumnStretched:      false,
-								MultiSelection:           true,
-								NotSortableByHeaderClick: true,
+
+							Label{Text: "СОМ порт вольтметра"},
+							ComboBoxComport(func() string {
+								return cfg.Get().Voltmeter.Comport
+							}, func(s string) {
+								updCfg(func(c *cfg.Config) {
+									c.Voltmeter.Comport = s
+								})
+							}),
+
+							Label{Text: "СОМ порт газового блока"},
+							ComboBoxComport(func() string {
+								return cfg.Get().Gas.Comport
+							}, func(s string) {
+								updCfg(func(c *cfg.Config) {
+									c.Gas.Comport = s
+								})
+							}),
+
+							Label{Text: "СОМ порт платы управления"},
+							ComboBoxComport(func() string {
+								return cfg.Get().Control.Comport
+							}, func(s string) {
+								updCfg(func(c *cfg.Config) {
+									c.Control.Comport = s
+								})
+							}),
+
+							Label{Text: "Исполнение"},
+							ComboBox{
+								AssignTo: &comboBoxDevice,
+								Editable: true,
+								MaxSize:  Size{100, 0},
+								OnCurrentIndexChanged: func() {
+									m := Calc.ListKinds(comboBoxDevice.Text())
+									must.PanicIf(comboBoxKind.SetModel(m))
+									if len(m) > 0 {
+										must.PanicIf(comboBoxKind.SetCurrentIndex(0))
+									}
+								},
+							},
+							ComboBox{
+								AssignTo: &comboBoxKind,
+								Editable: true,
+								MaxSize:  Size{150, 0},
+							},
+
+							Label{Text: "ПГС1"},
+							NumberEdit{
+								Decimals: 2,
+								AssignTo: &numberEditC[0],
+								MaxSize:  Size{40, 0},
+							},
+
+							Label{Text: "ПГС2"},
+							NumberEdit{
+								Decimals: 2,
+								AssignTo: &numberEditC[1],
+								MaxSize:  Size{40, 0},
+							},
+
+							Label{Text: "ПГС3"},
+							NumberEdit{
+								Decimals: 2,
+								AssignTo: &numberEditC[2],
+								MaxSize:  Size{40, 0},
+							},
+
+							Label{Text: "Наименование обмера"},
+							LineEdit{
+								AssignTo: &lineEditMeasureName,
 							},
 						},
 					},
@@ -157,14 +290,65 @@ func runWork(work func(ctx context.Context) error) {
 	}()
 }
 
+func getCalcTableViewModel() *viewcalc.TableViewModel {
+	return tableViewCalc.Model().(*viewcalc.TableViewModel)
+}
+
+func getMeasureTableViewModel() *viewmeasure.TableViewModel {
+	return tableViewMeasure.Model().(*viewmeasure.TableViewModel)
+}
+
+func getArchiveTableViewModel() *viewarch.TableViewModel {
+	return tableViewArch.Model().(*viewarch.TableViewModel)
+}
+
+func setMeasurement(m data.Measurement) {
+
+	must.PanicIf(comboBoxDevice.SetModel(Calc.ListDevices()))
+	must.PanicIf(comboBoxKind.SetModel(Calc.ListKinds(m.Device)))
+
+	must.PanicIf(appWindow.SetTitle(fmt.Sprintf("Обмер №%d %s",
+		m.MeasurementID, m.CreatedAt.Format("02.01.06 15:04"))))
+
+	must.PanicIf(comboBoxDevice.SetText(m.Device))
+	must.PanicIf(comboBoxKind.SetText(m.Kind))
+	must.PanicIf(lineEditMeasureName.SetText(m.Name))
+
+	for i := 0; i < 3; i++ {
+		var value float64
+		if i < len(m.Pgs) {
+			value = m.Pgs[i]
+		}
+		must.PanicIf(numberEditC[i].SetValue(value))
+
+	}
+	getMeasureTableViewModel().SetViewData(m)
+
+	if calcCols, err := Calc.CalculateMeasure(m); err != nil {
+		must.PanicIf(labelCalcErr.SetText(err.Error()))
+		labelCalcErr.SetVisible(true)
+		tableViewCalc.SetVisible(false)
+	} else {
+		getCalcTableViewModel().SetViewData(calcCols)
+		labelCalcErr.SetVisible(false)
+		tableViewCalc.SetVisible(true)
+	}
+}
+
 var (
 	menuStop,
 	menuRunMeasure,
 	menuRunInterrogate *walk.Action
-	radioButtonCalc *walk.RadioButton
-	mainTableView   *walk.TableView
-	labelCalcErr    *walk.Label
-	groupBoxJournal *walk.GroupBox
+	tableViewMeasure    *walk.TableView
+	tableViewCalc       *walk.TableView
+	tableViewArch       *walk.TableView
+	labelCalcErr        *walk.Label
+	lineEditMeasureName *walk.LineEdit
+	groupBoxJournal     *walk.GroupBox
+	comboBoxDevice      *walk.ComboBox
+	comboBoxKind        *walk.ComboBox
+
+	numberEditC [3]*walk.NumberEdit
 
 	appWindow *walk.MainWindow
 

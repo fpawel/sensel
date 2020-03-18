@@ -23,17 +23,33 @@ type MeasurementInfo struct {
 }
 
 type Sample struct {
-	CreatedAt   time.Time
-	Gas         int
-	Q           float64
-	T           float64
-	U           float64
-	I           float64
-	Productions [16]Production
+	Tm  time.Time
+	Gas int
+	Q   float64
+	T   float64
+	Ub  float64
+	I   float64
+	U   [16]float64
+	Br  [16]bool
 }
 
-type Production struct {
-	Place int     `db:"int"`
-	Value float64 `db:"value"`
-	Break bool    `db:"break"`
+func (m Measurement) I() (xs []float64) {
+	for _, smp := range m.Samples {
+		xs = append(xs, smp.I)
+	}
+	return
+}
+
+func (m Measurement) T() (xs []float64) {
+	for _, smp := range m.Samples {
+		xs = append(xs, smp.T)
+	}
+	return
+}
+
+func (m Measurement) U(n int) (xs []float64) {
+	for _, smp := range m.Samples {
+		xs = append(xs, smp.U[n])
+	}
+	return
 }

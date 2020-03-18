@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Gas       Gas       `yaml:"gas"`
 	Voltmeter Voltmeter `yaml:"voltmeter"`
+	Control   Control   `yaml:"control"`
 }
 
 type Gas struct {
@@ -22,6 +23,10 @@ type Gas struct {
 }
 
 type Voltmeter struct {
+	Comm `yaml:"comm"`
+}
+
+type Control struct {
 	Comm `yaml:"comm"`
 }
 

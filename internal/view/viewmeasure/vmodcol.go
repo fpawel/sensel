@@ -1,4 +1,4 @@
-package view
+package viewmeasure
 
 import (
 	"fmt"
@@ -6,14 +6,14 @@ import (
 	. "github.com/lxn/walk/declarative"
 )
 
-func (x *MainTableViewModel) setupTableViewColumns() {
+func (x *TableViewModel) setupTableViewColumns() {
 	must.PanicIf(x.tv.Columns().Clear())
 	for _, c := range x.columns() {
 		must.PanicIf(c.Create(x.tv))
 	}
 }
 
-func (x *MainTableViewModel) columns() (xs []TableViewColumn) {
+func (x *TableViewModel) columns() (xs []TableViewColumn) {
 	appendResult := func(c TableViewColumn) {
 		xs = append(xs, c)
 	}
@@ -22,10 +22,7 @@ func (x *MainTableViewModel) columns() (xs []TableViewColumn) {
 		Title: "Датчик",
 	})
 
-	if x.showCalc {
-		return
-	}
-	for i := range x.d.D.Samples {
+	for i := range x.d.Samples {
 		appendResult(TableViewColumn{
 			Name:  fmt.Sprintf("column%d", i),
 			Title: fmt.Sprintf("%d", i+1),

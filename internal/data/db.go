@@ -20,6 +20,14 @@ func Open(filename string) (*sqlx.DB, error) {
 	return db, nil
 }
 
+func ListArchive(db *sqlx.DB, arch *[]MeasurementInfo) error {
+	const q = `
+SELECT measurement_id, created_at, device, kind, name FROM measurement
+ORDER BY created_at
+`
+	return db.Select(arch, q)
+}
+
 func GetLastMeasurement(db *sqlx.DB, m *Measurement) error {
 	var x struct {
 		MeasurementInfo

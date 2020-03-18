@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
-	"github.com/fpawel/sensel/internal/view"
+	"github.com/fpawel/sensel/internal/view/viewcalc"
+	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
@@ -37,15 +39,22 @@ func Main() {
 	db, err = data.Open(dbFilename)
 	must.PanicIf(err)
 
+	Calc, err = calc.New(filepath.Join(exeDir, "lua", "sensel.lua"))
+	must.PanicIf(err)
+
 	must.PanicIf(newApplicationWindow().Create())
 
 	// инициализация модели представления
 	var measurement data.Measurement
 	_ = data.GetLastMeasurement(db, &measurement)
-	view.NewMainTableViewModel(mainTableView)
-	setMeasurementViewModel(measurement)
+	viewmeasure.NewMainTableViewModel(tableViewMeasure)
+	viewcalc.New(tableViewCalc)
 
-	radioButtonCalc.SetChecked(true)
+	setMeasurement(measurement)
+
+	var archive []data.MeasurementInfo
+	must.PanicIf(data.ListArchive(db, &archive))
+	getArchiveTableViewModel().SetViewData(archive)
 
 	if !win.ShowWindow(appWindow.Handle(), win.SW_SHOWMAXIMIZED) {
 		panic("can`t show window")
@@ -65,25 +74,9 @@ func Main() {
 	log.Debug("all canceled and closed")
 }
 
-func getMainTableViewModel() *view.MainTableViewModel {
-	return mainTableView.Model().(*view.MainTableViewModel)
-}
-
-func setMeasurementViewModel(measurement data.Measurement) {
-	//calcColumns, t, err := prodTypes.CalcSamples(measurement)
-	//if err != nil {
-	//	must.PanicIf(labelCalcErr.SetText(err.Error()))
-	//	labelCalcErr.SetVisible(true)
-	//} else {
-	//	labelCalcErr.SetVisible(false)
-	//}
-	getMainTableViewModel().SetViewData(view.MainTableViewData{
-		D: measurement,
-	})
-}
-
 var (
 	log    = structlog.New()
 	db     *sqlx.DB
 	appCtx context.Context
+	Calc   calc.C
 )

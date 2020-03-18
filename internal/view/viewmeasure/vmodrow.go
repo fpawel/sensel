@@ -1,4 +1,4 @@
-package view
+package viewmeasure
 
 import (
 	"fmt"
@@ -10,10 +10,10 @@ type measurementRow struct {
 	F     measurementRowFunc
 }
 
-type measurementRowFunc = func(x *MainTableViewModel, col int) interface{}
+type measurementRowFunc = func(x *TableViewModel, col int) interface{}
 
 var measurementRows = func() (xs []measurementRow) {
-	type M = *MainTableViewModel
+	type M = *TableViewModel
 	type Row = measurementRow
 
 	appendResult := func(title string, F measurementRowFunc) {
@@ -24,30 +24,17 @@ var measurementRows = func() (xs []measurementRow) {
 	}
 
 	smp := func(x M, col int) data.Sample {
-		return x.d.D.Samples[col-1]
+		return x.d.Samples[col-1]
 	}
-
-	//fmtNoNaN := func(v float64) interface{} {
-	//	if math.IsNaN(v) {
-	//		return ""
-	//	}
-	//	return v
-	//}
 
 	for i := 0; i < 16; i++ {
 		i := i
 		appendResult(fmt.Sprintf("%d", i), func(x M, col int) interface{} {
-			if x.showCalc {
-				return ""
-			}
-			return smp(x, col).Productions[i].Value
+			return smp(x, col).U[i]
 		})
 	}
 	appendResult("Газ", func(x M, col int) interface{} {
 		smp := smp(x, col)
-		if smp.Gas == 0 {
-			return ""
-		}
 		return smp.Gas
 	})
 	appendResult("Расход", func(x M, col int) interface{} {
@@ -63,7 +50,7 @@ var measurementRows = func() (xs []measurementRow) {
 		return smp(x, col).T
 	})
 	appendResult("Время", func(x M, col int) interface{} {
-		return smp(x, col).CreatedAt.Format("15:04:05")
+		return smp(x, col).Tm.Format("15:04:05")
 	})
 	return
 }()
