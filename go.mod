@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/ansel1/merry v1.5.1
 	github.com/fpawel/atool v0.0.0-20200220134135-ee754291ffb5
-	github.com/fpawel/comm v0.0.0-20191223111435-ed746751e6a5
+	github.com/fpawel/comm v0.0.0-20200319090813-08b8ad2d4edb
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect

@@ -1,23 +1,30 @@
 package viewmeasure
 
 import (
+	"fmt"
+	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
+	"github.com/lxn/walk/declarative"
+	"strconv"
 )
 
 var _ walk.TableModel = new(TableViewModel)
 
 type TableViewModel struct {
 	walk.TableModelBase
-	d  data.Measurement
-	tv *walk.TableView
+	d    data.Measurement
+	cs   []calc.Column
+	tv   *walk.TableView
+	rows [][]interface{}
 }
 
 func NewMainTableViewModel(tv *walk.TableView) *TableViewModel {
 	x := &TableViewModel{
 		tv: tv,
 	}
+
 	must.PanicIf(tv.SetModel(x))
 	return x
 }
@@ -26,46 +33,157 @@ func (x *TableViewModel) ViewData() data.Measurement {
 	return x.d
 }
 
-func (x *TableViewModel) SetViewData(d data.Measurement) {
+func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 	x.d = d
+	x.cs = cs
+	x.rows = nil
+
+	type smp = data.Sample
+
+	addRow := func(title string, f func(smp) interface{}, fc func(calc.Column) interface{}) {
+		row := []interface{}{title}
+		for _, smp := range x.d.Samples {
+			smp := smp
+			row = append(row, f(smp))
+		}
+
+		for _, c := range x.cs {
+			c := c
+			row = append(row, fc(c))
+		}
+
+		x.rows = append(x.rows, row)
+	}
+
+	addRowNoCalc := func(title string, f func(smp) interface{}) {
+		addRow(title, f, func(calc.Column) interface{} {
+			return ""
+		})
+	}
+
+	for i := 0; i < 16; i++ {
+		addRow(fmt.Sprintf("%d", i+1), func(s smp) interface{} {
+			return strconv.FormatFloat(s.U[i], 'g', -1, 64)
+		}, func(c calc.Column) interface{} {
+			return strconv.FormatFloat(c.Values[i].Value, 'f', c.Precision, 64)
+		})
+	}
+	addRowNoCalc("", func(s smp) interface{} {
+		return ""
+	})
+
+	addRowNoCalc("Газ", func(s smp) interface{} {
+		return s.Gas
+	})
+	addRowNoCalc("Q,мл/мин", func(s smp) interface{} {
+		return s.Q
+	})
+	addRowNoCalc("I,мА", func(s smp) interface{} {
+		return s.I
+	})
+	addRowNoCalc("U,В", func(s smp) interface{} {
+		return s.Ub
+	})
+	addRowNoCalc("Т⁰C", func(s smp) interface{} {
+		return s.T
+	})
+	addRowNoCalc("Время", func(s smp) interface{} {
+		return s.Tm.Format("15:04:05")
+	})
+
 	x.setupTableViewColumns()
 	x.PublishRowsReset()
 }
 
 func (x *TableViewModel) RowCount() int {
-	return len(measurementRows)
+	return len(x.rows)
 }
 
 func (x *TableViewModel) Value(row, col int) interface{} {
-	mRo := measurementRows[row]
-	if col == 0 {
-		return mRo.Title
-	}
-	if col-1 >= len(x.d.Samples) {
+	if row < 0 || row >= len(x.rows) {
 		return ""
 	}
-	return mRo.F(x, col)
+	Row := x.rows[row]
+	if col < 0 || col >= len(Row) {
+		return ""
+	}
 
+	return Row[col]
 }
 
 func (x *TableViewModel) StyleCell(s *walk.CellStyle) {
-	//mRo := measurementRows[s.Row()]
-	if s.Col() < 0 || s.Row() < 0 {
+
+	if s.Col() < 0 || s.Row() < 0 || s.Row() >= 16 {
 		return
 	}
-	for nSmp, smp := range x.d.Samples {
-		for i, br := range smp.Br {
-			if br {
-				if i == s.Row() {
-					s.BackgroundColor = walk.RGB(240, 240, 240)
-					switch s.Col() {
-					case 0:
-						s.Image = "img/error.png"
-					case nSmp + 1:
-						s.Image = "img/error_circle.png"
-					}
-				}
+	if s.Col() == 0 && s.Row() < 16 {
+		for _, smp := range x.d.Samples {
+			if smp.Br[s.Row()] {
+				s.Image = "img/error_circle.png"
+				return
 			}
 		}
+		for _, c := range x.cs {
+			if !c.Values[s.Row()].Ok {
+				s.Image = "img/error.png"
+				return
+			}
+		}
+		return
 	}
+	nSamp := s.Col() - 1
+	if s.Row() < 16 && nSamp >= 0 && nSamp < len(x.d.Samples) {
+		if x.d.Samples[nSamp].Br[s.Row()] {
+			s.Image = "img/error_circle.png"
+		}
+		return
+	}
+
+	nCalc := s.Col() - len(x.d.Samples) - 1
+	if nCalc < 0 || nCalc >= len(x.cs) {
+		return
+	}
+	c := x.cs[nCalc].Values[s.Row()]
+	if !c.Ok {
+		s.Image = "img/error.png"
+		s.TextColor = walk.RGB(255, 0, 0)
+	} else {
+		s.TextColor = walk.RGB(0, 0, 128)
+	}
+}
+
+func (x *TableViewModel) setupTableViewColumns() {
+	must.PanicIf(x.tv.Columns().Clear())
+	for _, c := range x.columns() {
+		must.PanicIf(c.Create(x.tv))
+	}
+}
+
+type tableViewColumn = declarative.TableViewColumn
+
+func (x *TableViewModel) columns() (xs []tableViewColumn) {
+	appendResult := func(c tableViewColumn) {
+		xs = append(xs, c)
+	}
+	appendResult(tableViewColumn{
+		Name:  "Датчик",
+		Title: "Датчик",
+	})
+
+	for i := range x.d.Samples {
+		appendResult(tableViewColumn{
+			Name:  fmt.Sprintf("column%d", i),
+			Title: fmt.Sprintf("Обмер №%d", i+1),
+			Width: 120,
+		})
+	}
+
+	for _, c := range x.cs {
+		appendResult(tableViewColumn{
+			Name:  fmt.Sprintf("column%d%s", c.Index, c.Name),
+			Title: c.Name,
+			Width: 80,
+		})
+	}
+	return
 }

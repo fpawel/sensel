@@ -3,11 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
+	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/fpawel/sensel/internal/view/viewarch"
-	"github.com/fpawel/sensel/internal/view/viewcalc"
 	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
@@ -28,21 +29,16 @@ func newApplicationWindow() MainWindow {
 		Background: SolidColorBrush{Color: walk.RGB(255, 255, 255)},
 		Font: Font{
 			Family:    "Segoe UI",
-			PointSize: 10,
+			PointSize: 12,
 		},
 		Layout: VBox{
 			Alignment: AlignHFarVNear,
 		},
 		MenuItems: []MenuItem{
 			Action{
-				AssignTo: &menuRunInterrogate,
-				Text:     "Опрос",
-				OnTriggered: func() {
-					runWork(func(ctx context.Context) error {
-						<-ctx.Done()
-						return nil
-					})
-				},
+				AssignTo:    &menuRunInterrogate,
+				Text:        "Опрос",
+				OnTriggered: doReadSample,
 			},
 			Action{
 				AssignTo: &menuRunMeasure,
@@ -137,50 +133,30 @@ func newApplicationWindow() MainWindow {
 							},
 						},
 					},
-
-					TabWidget{
-						ContentMarginsZero: true,
-						Pages: []TabPage{
-							{
-								Title: "Снятие",
-								Content: TableView{
-									AssignTo:                 &tableViewMeasure,
-									ColumnsOrderable:         false,
-									ColumnsSizable:           true,
-									LastColumnStretched:      false,
-									MultiSelection:           true,
-									NotSortableByHeaderClick: true,
-								},
+					Composite{
+						Layout: VBox{
+							MarginsZero: true,
+							SpacingZero: true,
+						},
+						Children: []Widget{
+							TableView{
+								AssignTo:                 &tableViewMeasure,
+								ColumnsOrderable:         false,
+								ColumnsSizable:           true,
+								LastColumnStretched:      false,
+								MultiSelection:           true,
+								NotSortableByHeaderClick: true,
 							},
-							{
-								Title: "Расчёт",
-								Content: Composite{
-									Layout: VBox{
-										SpacingZero: true,
-										MarginsZero: true,
-									},
-									Children: []Widget{
-										TableView{
-											AssignTo:                 &tableViewCalc,
-											ColumnsOrderable:         false,
-											ColumnsSizable:           true,
-											LastColumnStretched:      false,
-											MultiSelection:           true,
-											NotSortableByHeaderClick: true,
-										},
-										Label{
-											AssignTo:  &labelCalcErr,
-											TextColor: walk.RGB(255, 0, 0),
-										},
-									},
-								},
+
+							Label{
+								AssignTo:  &labelCalcErr,
+								TextColor: walk.RGB(255, 0, 0),
 							},
 						},
 					},
-
 					ScrollView{
-						MaxSize:         Size{Height: 0, Width: 200},
-						MinSize:         Size{Height: 0, Width: 200},
+						MaxSize:         Size{Height: 0, Width: 220},
+						MinSize:         Size{Height: 0, Width: 220},
 						HorizontalFixed: true,
 						Layout: VBox{
 							Alignment: AlignHCenterVCenter,
@@ -256,6 +232,13 @@ func newApplicationWindow() MainWindow {
 								MaxSize:  Size{40, 0},
 							},
 
+							Label{Text: "ПГС4"},
+							NumberEdit{
+								Decimals: 2,
+								AssignTo: &numberEditC[3],
+								MaxSize:  Size{40, 0},
+							},
+
 							Label{Text: "Наименование обмера"},
 							LineEdit{
 								AssignTo: &lineEditMeasureName,
@@ -281,17 +264,18 @@ func runWork(work func(ctx context.Context) error) {
 	ctx, interruptWorkFunc = context.WithCancel(appCtx)
 	wgWork.Add(1)
 	go func() {
-		_ = work(ctx)
+		err := work(ctx)
 		interruptWorkFunc()
 		wgWork.Done()
+		comports.CloseAllComports()
 		appWindow.Synchronize(func() {
 			setupWidgets(false)
+			if err == nil || merry.Is(err, context.Canceled) {
+				return
+			}
+			walk.MsgBox(appWindow, "Произошла ошибка", err.Error(), walk.MsgBoxIconError)
 		})
 	}()
-}
-
-func getCalcTableViewModel() *viewcalc.TableViewModel {
-	return tableViewCalc.Model().(*viewcalc.TableViewModel)
 }
 
 func getMeasureTableViewModel() *viewmeasure.TableViewModel {
@@ -314,25 +298,21 @@ func setMeasurement(m data.Measurement) {
 	must.PanicIf(comboBoxKind.SetText(m.Kind))
 	must.PanicIf(lineEditMeasureName.SetText(m.Name))
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		var value float64
 		if i < len(m.Pgs) {
 			value = m.Pgs[i]
 		}
 		must.PanicIf(numberEditC[i].SetValue(value))
-
 	}
-	getMeasureTableViewModel().SetViewData(m)
-
-	if calcCols, err := Calc.CalculateMeasure(m); err != nil {
+	calcCols, err := Calc.CalculateMeasure(m)
+	if err != nil {
 		must.PanicIf(labelCalcErr.SetText(err.Error()))
 		labelCalcErr.SetVisible(true)
-		tableViewCalc.SetVisible(false)
 	} else {
-		getCalcTableViewModel().SetViewData(calcCols)
 		labelCalcErr.SetVisible(false)
-		tableViewCalc.SetVisible(true)
 	}
+	getMeasureTableViewModel().SetViewData(m, calcCols)
 }
 
 var (
@@ -340,7 +320,6 @@ var (
 	menuRunMeasure,
 	menuRunInterrogate *walk.Action
 	tableViewMeasure    *walk.TableView
-	tableViewCalc       *walk.TableView
 	tableViewArch       *walk.TableView
 	labelCalcErr        *walk.Label
 	lineEditMeasureName *walk.LineEdit
@@ -348,7 +327,7 @@ var (
 	comboBoxDevice      *walk.ComboBox
 	comboBoxKind        *walk.ComboBox
 
-	numberEditC [3]*walk.NumberEdit
+	numberEditC [4]*walk.NumberEdit
 
 	appWindow *walk.MainWindow
 

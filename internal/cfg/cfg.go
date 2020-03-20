@@ -2,6 +2,7 @@ package cfg
 
 import (
 	"fmt"
+	"github.com/fpawel/comm"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 )
 
 type Config struct {
+	LogComm   bool      `yaml:"log_comm"`
 	Gas       Gas       `yaml:"gas"`
 	Voltmeter Voltmeter `yaml:"voltmeter"`
 	Control   Control   `yaml:"control"`
@@ -23,7 +25,8 @@ type Gas struct {
 }
 
 type Voltmeter struct {
-	Comm `yaml:"comm"`
+	Comm      `yaml:"comm"`
+	PauseScan time.Duration `yaml:"pause_scan"`
 }
 
 type Control struct {
@@ -36,6 +39,14 @@ type Comm struct {
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
+}
+
+func (x Comm) Comm() comm.Config {
+	return comm.Config{
+		TimeoutGetResponse: x.TimeoutGetResponse,
+		TimeoutEndResponse: x.TimeoutEndResponse,
+		MaxAttemptsRead:    x.MaxAttemptsRead,
+	}
 }
 
 func SetYaml(strYaml []byte) error {
@@ -65,6 +76,7 @@ func Set(c Config) error {
 		return err
 	}
 	cfg = c
+	comm.SetEnableLog(c.LogComm)
 	return nil
 }
 
@@ -91,6 +103,35 @@ func init() {
 	c, err := readFile()
 	if err != nil {
 		fmt.Println(err, "file:", filename())
+
+		c = Config{
+			Gas: Gas{
+				Comm: Comm{
+					BaudRate:           9600,
+					TimeoutGetResponse: time.Second,
+					TimeoutEndResponse: 50 * time.Millisecond,
+					MaxAttemptsRead:    3,
+				},
+			},
+			Voltmeter: Voltmeter{
+				Comm: Comm{
+					BaudRate:           115200,
+					TimeoutGetResponse: time.Second,
+					TimeoutEndResponse: 50 * time.Millisecond,
+					MaxAttemptsRead:    3,
+				},
+				PauseScan: 3 * time.Second,
+			},
+			Control: Control{
+				Comm{
+					BaudRate:           9600,
+					TimeoutGetResponse: time.Second,
+					TimeoutEndResponse: 50 * time.Millisecond,
+					MaxAttemptsRead:    3,
+				},
+			},
+		}
+
 	}
 	must.PanicIf(Set(c))
 }

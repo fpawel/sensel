@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/fpawel/comm"
 	"github.com/fpawel/sensel/internal/app"
 	"github.com/powerman/structlog"
 	"os"
@@ -23,6 +22,5 @@ func main() {
 			structlog.KeySource: " %6[2]s",
 			structlog.KeyUnit:   " %6[2]s",
 		})
-	comm.SetEnableLog(true)
 	app.Main()
 }

@@ -35,7 +35,7 @@ func TestCreateDB(t *testing.T) {
 
 	tm := time.Now()
 	for i := 0; i < 100; i++ {
-		samples := make([]Sample, 10)
+		samples := make([]Sample, 5)
 		randSamples(samples)
 		for i := range samples {
 			samples[i].Tm = tm
@@ -44,7 +44,7 @@ func TestCreateDB(t *testing.T) {
 		m := Measurement{
 			MeasurementInfo: MeasurementInfo{
 				CreatedAt: tm,
-				Device:    "СГГ-1",
+				Device:    "СТМ-30",
 				Kind:      "измерительный",
 			},
 			MeasurementData: MeasurementData{

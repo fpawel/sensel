@@ -1,3 +1,4 @@
+
 -- ГКС платины
 local gammaPlatinum = 0.00385
 
@@ -5,15 +6,17 @@ local gammaPlatinum = 0.00385
 local lowerFlammabilityLimitCH4 = 4.4
 
 export.Devices =  {
-    ['СГГ-1'] = {
+    ['СТМ-30'] = {
         ['измерительный'] = {
             Samples = {
                 sample(1, "1m", 5, 10),
-                sample(2, "1m30s", 105, 50),
+                sample(1, "1m30s", 105, 50),
                 sample(2, "1m30s", 105, 50),
                 sample(2, "1m30s", 105, 50)
             },
             Calculate = function(U, I, T, C)
+
+
                 local R0 = U[1] / (I[1] * (1 + gammaPlatinum * T[1]))
 
                 local Ur = U[2]
@@ -26,14 +29,54 @@ export.Devices =  {
                 local D = (U[4] - Ugs) / (Ugs - Ur)
 
                 return {
-                    column("R0", R0, R0 >= 6.7 and R0 <= 7.3),
-                    column("Ur", Ur, Ur >= 1.75 and Ur <= 2.05),
-                    column("Tch", Tch, true),
-                    column("Tch20", Tch20, true),
-                    column("B", B, B >= 35000 and B <= 38000),
-                    column("Uгс", Ugs, true),
-                    column("K", K, K >= 3 and K <= 6),
-                    column("D", D, true)
+                    {
+                        Name = "R0",
+                        Value = R0,
+                        Ok = R0 >= 6.7 and R0 <= 7.3,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Ur",
+                        Value = Ur,
+                        Ok = Ur >= 1.75 and Ur <= 2.05,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Tch",
+                        Value = Tch,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "Tch20",
+                        Value = Tch20,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "B",
+                        Value = B,
+                        Ok = B >= 35000 and B <= 38000,
+                        Precision = 4,
+                    },
+                    {
+                        Name = "Uгс",
+                        Value = Ugs,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "K",
+                        Value = K,
+                        Ok = K >= 3 and K <= 6,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "D",
+                        Value = D,
+                        Ok = D >= -0.5 and D <= 3,
+                        Precision = 3,
+                    },
                 }
             end
         },
@@ -57,14 +100,54 @@ export.Devices =  {
                 local D = (U[4] - Ugs) / (Ugs - Ur)
 
                 return {
-                    column("R0", R0, R0 >= 6.7 and R0 <= 7.3),
-                    column("Ur", Ur, Ur >= 1.75 and Ur <= 2.05),
-                    column("Tch", Tch, true),
-                    column("Tch20", Tch20, true),
-                    column("B", B, B >= 35000 and B <= 38000),
-                    column("Uгс", Ugs, true),
-                    column("K", K, K >= 3 and K <= 6),
-                    column("D", D, true)
+                    {
+                        Name = "R0",
+                        Value = R0,
+                        Ok = R0 >= 6.7 and R0 <= 7.3,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Ur",
+                        Value = Ur,
+                        Ok = Ur >= 1.75 and Ur <= 2.05,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Tch",
+                        Value = Tch,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "Tch20",
+                        Value = Tch20,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "B",
+                        Value = B,
+                        Ok = B >= 35000 and B <= 38000,
+                        Precision = 4,
+                    },
+                    {
+                        Name = "Uгс",
+                        Value = Ugs,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "K",
+                        Value = K,
+                        Ok = K >= 3 and K <= 6,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "D",
+                        Value = D,
+                        Ok = true,
+                        Precision = 3,
+                    },
                 }
             end
         }
@@ -90,14 +173,54 @@ export.Devices =  {
                 local D = (U[4] - Ugs) / (Ugs - Ur)
 
                 return {
-                    column("R0", R0, R0 >= 6.7 and R0 <= 7.3),
-                    column("Ur", Ur, Ur >= 1.75 and Ur <= 2.05),
-                    column("Tch", Tch, true),
-                    column("Tch20", Tch20, true),
-                    column("B", B, B >= 35000 and B <= 38000),
-                    column("Uгс", Ugs, true),
-                    column("K", K, K >= 3 and K <= 6),
-                    column("D", D, true)
+                    {
+                        Name = "R0",
+                        Value = R0,
+                        Ok = R0 >= 6.7 and R0 <= 7.3,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Ur",
+                        Value = Ur,
+                        Ok = Ur >= 1.75 and Ur <= 2.05,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Tch",
+                        Value = Tch,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "Tch20",
+                        Value = Tch20,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "B",
+                        Value = B,
+                        Ok = B >= 35000 and B <= 38000,
+                        Precision = 4,
+                    },
+                    {
+                        Name = "Uгс",
+                        Value = Ugs,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "K",
+                        Value = K,
+                        Ok = K >= 3 and K <= 6,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "D",
+                        Value = D,
+                        Ok = true,
+                        Precision = 3,
+                    },
                 }
             end
         },
@@ -121,14 +244,54 @@ export.Devices =  {
                 local D = (U[4] - Ugs) / (Ugs - Ur)
 
                 return {
-                    column("R0", R0, R0 >= 6.7 and R0 <= 7.3),
-                    column("Ur", Ur, Ur >= 1.75 and Ur <= 2.05),
-                    column("Tch", Tch, true),
-                    column("Tch20", Tch20, true),
-                    column("B", B, B >= 35000 and B <= 38000),
-                    column("Uгс", Ugs, true),
-                    column("K", K, K >= 3 and K <= 6),
-                    column("D", D, true)
+                    {
+                        Name = "R0",
+                        Value = R0,
+                        Ok = R0 >= 6.7 and R0 <= 7.3,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Ur",
+                        Value = Ur,
+                        Ok = Ur >= 1.75 and Ur <= 2.05,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "Tch",
+                        Value = Tch,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "Tch20",
+                        Value = Tch20,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "B",
+                        Value = B,
+                        Ok = B >= 35000 and B <= 38000,
+                        Precision = 4,
+                    },
+                    {
+                        Name = "Uгс",
+                        Value = Ugs,
+                        Ok = true,
+                        Precision = 2,
+                    },
+                    {
+                        Name = "K",
+                        Value = K,
+                        Ok = K >= 3 and K <= 6,
+                        Precision = 3,
+                    },
+                    {
+                        Name = "D",
+                        Value = D,
+                        Ok = true,
+                        Precision = 3,
+                    },
                 }
             end
         }

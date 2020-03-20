@@ -5,7 +5,6 @@ import (
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
-	"github.com/fpawel/sensel/internal/view/viewcalc"
 	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
@@ -48,7 +47,6 @@ func Main() {
 	var measurement data.Measurement
 	_ = data.GetLastMeasurement(db, &measurement)
 	viewmeasure.NewMainTableViewModel(tableViewMeasure)
-	viewcalc.New(tableViewCalc)
 
 	setMeasurement(measurement)
 

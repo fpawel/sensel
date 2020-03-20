@@ -25,9 +25,10 @@ type Sample struct {
 }
 
 type nameValueOk struct {
-	Name  string
-	Value float64
-	Ok    bool
+	Name      string
+	Value     float64
+	Ok        bool
+	Precision int
 }
 
 type ValueOk struct {
@@ -42,11 +43,12 @@ func New(filename string) (C, error) {
 		Devices mapProdTypes
 	}
 
-	column := func(name string, value float64, ok bool) nameValueOk {
+	column := func(name string, value float64, ok bool, precision int) nameValueOk {
 		return nameValueOk{
-			Name:  name,
-			Value: value,
-			Ok:    ok,
+			Name:      name,
+			Value:     value,
+			Ok:        ok,
+			Precision: precision,
 		}
 	}
 
@@ -88,9 +90,10 @@ func New(filename string) (C, error) {
 }
 
 type Column struct {
-	Values [16]ValueOk
-	Name   string
-	Index  int
+	Values    [16]ValueOk
+	Name      string
+	Index     int
+	Precision int
 }
 
 func (c C) ListDevices() (xs []string) {
@@ -137,6 +140,7 @@ func (c C) CalculateMeasure(m data.Measurement) ([]Column, error) {
 			r.Index = columnIndex
 			r.Values[i].Value = c.Value
 			r.Values[i].Ok = c.Ok
+			r.Precision = c.Precision
 			mCols[c.Name] = r
 		}
 	}
