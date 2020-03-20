@@ -111,6 +111,18 @@ func (c C) ListKinds(device string) (xs []string) {
 	return
 }
 
+func (c C) GetProductTypeMeasurementScheme(device, kind string) ([]Sample, error) {
+	mD, ok := c.d[device]
+	if !ok {
+		return nil, fmt.Errorf("не найден тип прибора: %s %s", device, kind)
+	}
+	d, ok := mD[kind]
+	if !ok {
+		return nil, fmt.Errorf("не найден тип прибора: %s %s", device, kind)
+	}
+	return d.Samples, nil
+}
+
 func (c C) CalculateMeasure(m data.Measurement) ([]Column, error) {
 	mD, ok := c.d[m.Device]
 	if !ok {

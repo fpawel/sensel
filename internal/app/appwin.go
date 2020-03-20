@@ -38,7 +38,7 @@ func newApplicationWindow() MainWindow {
 			Action{
 				AssignTo:    &menuRunInterrogate,
 				Text:        "Опрос",
-				OnTriggered: doReadSample,
+				OnTriggered: runReadSample,
 			},
 			Action{
 				AssignTo: &menuRunMeasure,

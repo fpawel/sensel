@@ -3,6 +3,7 @@ package cfg
 import (
 	"fmt"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -13,10 +14,13 @@ import (
 )
 
 type Config struct {
-	LogComm   bool      `yaml:"log_comm"`
 	Gas       Gas       `yaml:"gas"`
 	Voltmeter Voltmeter `yaml:"voltmeter"`
 	Control   Control   `yaml:"control"`
+	Debug     struct {
+		LogComm              bool `yaml:"log_comm"`
+		IgnoreReadBreakError bool `yaml:"ignore_read_break_error"`
+	} `yaml:"debug"`
 }
 
 type Gas struct {
@@ -31,6 +35,7 @@ type Voltmeter struct {
 
 type Control struct {
 	Comm `yaml:"comm"`
+	KI   float64 `yaml:"Ki"`
 }
 
 type Comm struct {
@@ -39,6 +44,11 @@ type Comm struct {
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
+}
+
+func (x Config) CommControl() comm.T {
+	c := x.Control
+	return comm.New(comports.GetComport(c.Comport, c.BaudRate), c.Comm.Comm())
 }
 
 func (x Comm) Comm() comm.Config {
@@ -76,7 +86,7 @@ func Set(c Config) error {
 		return err
 	}
 	cfg = c
-	comm.SetEnableLog(c.LogComm)
+	comm.SetEnableLog(c.Debug.LogComm)
 	return nil
 }
 
@@ -123,12 +133,13 @@ func init() {
 				PauseScan: 3 * time.Second,
 			},
 			Control: Control{
-				Comm{
+				Comm: Comm{
 					BaudRate:           9600,
 					TimeoutGetResponse: time.Second,
 					TimeoutEndResponse: 50 * time.Millisecond,
 					MaxAttemptsRead:    3,
 				},
+				KI: 0.000082,
 			},
 		}
 

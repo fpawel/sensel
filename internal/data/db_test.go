@@ -102,6 +102,10 @@ func TestCRUD(t *testing.T) {
 
 }
 
+func Test1(t *testing.T) {
+	cmpreport.AssertEqual(t, []interface{}{1, []interface{}{4, 5, 6}, 3}, []interface{}{1, []interface{}{4, 5, "6"}, 3})
+}
+
 func newTestDB(t *testing.T) *sqlx.DB {
 	conn, err := sql.Open("sqlite3", ":memory:")
 	assert.NoError(t, err)
