@@ -52,7 +52,7 @@ func New(filename string) (C, error) {
 		}
 	}
 
-	sample := func(gas int, strDuration string, U float64, I float64) Sample {
+	sample := func(gas int, strDuration string, I, U float64) Sample {
 		dur, err := time.ParseDuration(strDuration)
 		if err != nil {
 			L.RaiseError("duration: %v", err)
@@ -96,6 +96,11 @@ type Column struct {
 	Precision int
 }
 
+func (c Column) IsErr(n int) bool {
+	x := c.Values[n]
+	return !math.IsNaN(x.Value) && !x.Ok
+}
+
 func (c C) ListDevices() (xs []string) {
 	for s := range c.d {
 		xs = append(xs, s)
@@ -107,6 +112,13 @@ func (c C) ListKinds(device string) (xs []string) {
 	d, _ := c.d[device]
 	for s := range d {
 		xs = append(xs, s)
+	}
+	return
+}
+
+func GetTotalMeasureDuration(xs []Sample) (d time.Duration) {
+	for _, x := range xs {
+		d += x.Duration
 	}
 	return
 }

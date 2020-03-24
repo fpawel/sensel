@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
 	"github.com/lxn/walk/declarative"
+	"math"
 	"strconv"
 )
 
@@ -65,7 +66,11 @@ func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 		addRow(fmt.Sprintf("%d", i+1), func(s smp) interface{} {
 			return strconv.FormatFloat(s.U[i], 'g', -1, 64)
 		}, func(c calc.Column) interface{} {
-			return strconv.FormatFloat(c.Values[i].Value, 'f', c.Precision, 64)
+			value := c.Values[i].Value
+			if math.IsNaN(value) {
+				return ""
+			}
+			return strconv.FormatFloat(value, 'f', c.Precision, 64)
 		})
 	}
 	addRowNoCalc("", func(s smp) interface{} {
@@ -79,7 +84,7 @@ func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 		return s.Q
 	})
 	addRowNoCalc("I,мА", func(s smp) interface{} {
-		return s.I
+		return s.I * 1000.
 	})
 	addRowNoCalc("U,В", func(s smp) interface{} {
 		return s.Ub
@@ -124,7 +129,7 @@ func (x *TableViewModel) StyleCell(s *walk.CellStyle) {
 			}
 		}
 		for _, c := range x.cs {
-			if !c.Values[s.Row()].Ok {
+			if c.IsErr(s.Row()) {
 				s.Image = "img/error.png"
 				return
 			}
@@ -143,8 +148,7 @@ func (x *TableViewModel) StyleCell(s *walk.CellStyle) {
 	if nCalc < 0 || nCalc >= len(x.cs) {
 		return
 	}
-	c := x.cs[nCalc].Values[s.Row()]
-	if !c.Ok {
+	if x.cs[nCalc].IsErr(s.Row()) {
 		s.Image = "img/error.png"
 		s.TextColor = walk.RGB(255, 0, 0)
 	} else {

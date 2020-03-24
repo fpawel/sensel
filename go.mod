@@ -21,7 +21,7 @@ require (
 	github.com/powerman/structlog v0.6.0
 	github.com/stretchr/testify v1.5.1
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
+	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200121175148-a6ecf24a6d71

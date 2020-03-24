@@ -3,6 +3,7 @@ package cfg
 import (
 	"fmt"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"gopkg.in/yaml.v3"
@@ -14,12 +15,12 @@ import (
 )
 
 type Config struct {
-	Gas       Gas       `yaml:"gas"`
-	Voltmeter Voltmeter `yaml:"voltmeter"`
-	Control   Control   `yaml:"control"`
-	Debug     struct {
-		LogComm              bool `yaml:"log_comm"`
-		IgnoreReadBreakError bool `yaml:"ignore_read_break_error"`
+	Gas                Gas           `yaml:"gas"`
+	Voltmeter          Voltmeter     `yaml:"voltmeter"`
+	Control            Control       `yaml:"control"`
+	ReadSampleInterval time.Duration `yaml:"read_sample_interval"`
+	Debug              struct {
+		LogComm bool `yaml:"log_comm"`
 	} `yaml:"debug"`
 }
 
@@ -51,6 +52,20 @@ func (x Config) CommControl() comm.T {
 	return comm.New(comports.GetComport(c.Comport, c.BaudRate), c.Comm.Comm())
 }
 
+func (x Config) CommGas() comm.T {
+	c := x.Gas
+	return comm.New(comports.GetComport(c.Comport, c.BaudRate), c.Comm.Comm())
+}
+
+func (x Config) CommVoltmeter() comm.T {
+	return comm.New(x.ComportVoltmeter(), x.Voltmeter.Comm.Comm())
+}
+
+func (x Config) ComportVoltmeter() *comport.Port {
+	c := x.Voltmeter
+	return comports.GetComport(c.Comport, c.BaudRate)
+}
+
 func (x Comm) Comm() comm.Config {
 	return comm.Config{
 		TimeoutGetResponse: x.TimeoutGetResponse,
@@ -79,6 +94,11 @@ func Get() (r Config) {
 }
 
 func Set(c Config) error {
+
+	if c.ReadSampleInterval < 10*time.Second {
+		c.ReadSampleInterval = 10 * time.Second
+	}
+
 	b := must.MarshalYaml(c)
 	mu.Lock()
 	defer mu.Unlock()
@@ -115,6 +135,7 @@ func init() {
 		fmt.Println(err, "file:", filename())
 
 		c = Config{
+			ReadSampleInterval: 5 * time.Second,
 			Gas: Gas{
 				Comm: Comm{
 					BaudRate:           9600,

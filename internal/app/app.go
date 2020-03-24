@@ -43,6 +43,13 @@ func Main() {
 
 	must.PanicIf(newApplicationWindow().Create())
 
+	// инициализация виджетов
+	labelCurrentWork.SetVisible(false)
+	labelTotalWork.SetVisible(false)
+	progressBarCurrentWork.SetVisible(false)
+	progressBarTotalWork.SetVisible(false)
+	go trackRegChangeComport()
+
 	// инициализация модели представления
 	var measurement data.Measurement
 	_ = data.GetLastMeasurement(db, &measurement)

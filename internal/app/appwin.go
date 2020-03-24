@@ -43,6 +43,14 @@ func newApplicationWindow() MainWindow {
 			Action{
 				AssignTo: &menuRunMeasure,
 				Text:     "Обмер",
+				OnTriggered: func() {
+					measurementScheme, err := Calc.GetProductTypeMeasurementScheme(comboBoxDevice.Text(), comboBoxKind.Text())
+					if err != nil {
+						walk.MsgBox(appWindow, comboBoxDevice.Text()+": "+comboBoxKind.Text(), err.Error(), walk.MsgBoxIconError)
+						return
+					}
+					runMeasure(measurementScheme)
+				},
 			},
 			Action{
 				AssignTo: &menuStop,
@@ -53,7 +61,8 @@ func newApplicationWindow() MainWindow {
 				},
 			},
 			Action{
-				Text: "Журнал",
+				Text:     "Журнал",
+				AssignTo: &menuJournal,
 				OnTriggered: func() {
 					groupBoxJournal.SetVisible(!groupBoxJournal.Visible())
 				},
@@ -147,14 +156,31 @@ func newApplicationWindow() MainWindow {
 								MultiSelection:           true,
 								NotSortableByHeaderClick: true,
 							},
-
 							Label{
 								AssignTo:  &labelCalcErr,
 								TextColor: walk.RGB(255, 0, 0),
 							},
+							Label{
+								AssignTo:  &labelCurrentWork,
+								TextColor: walk.RGB(0, 0, 128),
+							},
+							ProgressBar{
+								AssignTo: &progressBarCurrentWork,
+								MaxValue: 100,
+							},
+							Label{
+								AssignTo:  &labelTotalWork,
+								TextColor: walk.RGB(0, 0, 128),
+								Text:      "Общий прогресс выполнения",
+							},
+							ProgressBar{
+								AssignTo: &progressBarTotalWork,
+								MaxValue: 100,
+							},
 						},
 					},
 					ScrollView{
+						AssignTo:        &scrollViewRight,
 						MaxSize:         Size{Height: 0, Width: 220},
 						MinSize:         Size{Height: 0, Width: 220},
 						HorizontalFixed: true,
@@ -257,6 +283,11 @@ func runWork(work func(ctx context.Context) error) {
 		must.PanicIf(menuStop.SetVisible(run))
 		must.PanicIf(menuRunMeasure.SetVisible(!run))
 		must.PanicIf(menuRunInterrogate.SetVisible(!run))
+		must.PanicIf(menuJournal.SetVisible(!run))
+		if run {
+			groupBoxJournal.SetVisible(false)
+		}
+		scrollViewRight.SetVisible(!run)
 	}
 
 	setupWidgets(true)
@@ -316,18 +347,27 @@ func setMeasurement(m data.Measurement) {
 }
 
 var (
+	menuJournal,
 	menuStop,
 	menuRunMeasure,
 	menuRunInterrogate *walk.Action
-	tableViewMeasure    *walk.TableView
-	tableViewArch       *walk.TableView
-	labelCalcErr        *walk.Label
+	tableViewMeasure *walk.TableView
+	tableViewArch    *walk.TableView
+	labelCalcErr     *walk.Label
+
+	labelCurrentWork       *walk.Label
+	labelTotalWork         *walk.Label
+	progressBarCurrentWork *walk.ProgressBar
+	progressBarTotalWork   *walk.ProgressBar
+
 	lineEditMeasureName *walk.LineEdit
 	groupBoxJournal     *walk.GroupBox
 	comboBoxDevice      *walk.ComboBox
 	comboBoxKind        *walk.ComboBox
 
 	numberEditC [4]*walk.NumberEdit
+
+	scrollViewRight *walk.ScrollView
 
 	appWindow *walk.MainWindow
 
