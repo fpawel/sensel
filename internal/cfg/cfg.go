@@ -17,7 +17,7 @@ import (
 type Config struct {
 	Gas                Gas           `yaml:"gas"`
 	Voltmeter          Voltmeter     `yaml:"voltmeter"`
-	Control            Control       `yaml:"control"`
+	ControlSheet       Control       `yaml:"control"`
 	ReadSampleInterval time.Duration `yaml:"read_sample_interval"`
 	Debug              struct {
 		LogComm bool `yaml:"log_comm"`
@@ -48,7 +48,7 @@ type Comm struct {
 }
 
 func (x Config) CommControl() comm.T {
-	c := x.Control
+	c := x.ControlSheet
 	return comm.New(comports.GetComport(c.Comport, c.BaudRate), c.Comm.Comm())
 }
 
@@ -72,18 +72,6 @@ func (x Comm) Comm() comm.Config {
 		TimeoutEndResponse: x.TimeoutEndResponse,
 		MaxAttemptsRead:    x.MaxAttemptsRead,
 	}
-}
-
-func SetYaml(strYaml []byte) error {
-	var c Config
-	if err := yaml.Unmarshal(strYaml, &c); err != nil {
-		return err
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	must.PanicIf(writeFile(strYaml))
-	cfg = c
-	return nil
 }
 
 func Get() (r Config) {
@@ -153,10 +141,10 @@ func init() {
 				},
 				PauseScan: 3 * time.Second,
 			},
-			Control: Control{
+			ControlSheet: Control{
 				Comm: Comm{
 					BaudRate:           9600,
-					TimeoutGetResponse: time.Second,
+					TimeoutGetResponse: 3 * time.Second,
 					TimeoutEndResponse: 50 * time.Millisecond,
 					MaxAttemptsRead:    3,
 				},

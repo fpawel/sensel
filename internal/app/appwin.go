@@ -23,6 +23,10 @@ func newApplicationWindow() MainWindow {
 		must.PanicIf(cfg.Set(c))
 	}
 
+	bgWhite := SolidColorBrush{Color: walk.RGB(255, 255, 255)}
+
+	const widthStatusLabelCaption = 140
+
 	return MainWindow{
 		AssignTo:   &appWindow,
 		Title:      "ЧЭ лаборатория 74",
@@ -41,16 +45,9 @@ func newApplicationWindow() MainWindow {
 				OnTriggered: runReadSample,
 			},
 			Action{
-				AssignTo: &menuRunMeasure,
-				Text:     "Обмер",
-				OnTriggered: func() {
-					measurementScheme, err := Calc.GetProductTypeMeasurementScheme(comboBoxDevice.Text(), comboBoxKind.Text())
-					if err != nil {
-						walk.MsgBox(appWindow, comboBoxDevice.Text()+": "+comboBoxKind.Text(), err.Error(), walk.MsgBoxIconError)
-						return
-					}
-					runMeasure(measurementScheme)
-				},
+				AssignTo:    &menuRunMeasure,
+				Text:        "Обмер",
+				OnTriggered: runMeasure,
 			},
 			Action{
 				AssignTo: &menuStop,
@@ -70,16 +67,73 @@ func newApplicationWindow() MainWindow {
 		},
 		Children: []Widget{
 
-			//ScrollView{
-			//	MaxSize:       Size{Height: 30, Width: 0},
-			//	MinSize:       Size{Height: 30, Width: 0},
-			//	VerticalFixed: true,
-			//	Layout: HBox{
-			//		Alignment: AlignHCenterVCenter,
-			//		MarginsZero: true,
-			//	},
-			//	Children: []Widget{},
-			//},
+			ScrollView{
+				AssignTo:      &scrollViewMeasurement,
+				VerticalFixed: true,
+				MaxSize:       Size{Height: 40, Width: 0},
+				MinSize:       Size{Height: 40, Width: 0},
+				Layout: HBox{
+					Alignment:   AlignHCenterVCenter,
+					MarginsZero: true,
+				},
+				Children: []Widget{
+					Label{Text: "Исполнение"},
+					ComboBox{
+						AssignTo: &comboBoxDevice,
+						Editable: true,
+						MaxSize:  Size{100, 0},
+						OnCurrentIndexChanged: func() {
+							m := Calc.ListKinds(comboBoxDevice.Text())
+							must.PanicIf(comboBoxKind.SetModel(m))
+							if len(m) > 0 {
+								must.PanicIf(comboBoxKind.SetCurrentIndex(0))
+							}
+						},
+					},
+					ComboBox{
+						AssignTo: &comboBoxKind,
+						Editable: true,
+						MaxSize:  Size{150, 0},
+					},
+
+					Label{Text: "ПГС1"},
+					NumberEdit{
+						Decimals: 2,
+						AssignTo: &numberEditC[0],
+						MaxSize:  Size{90, 0},
+						MinSize:  Size{90, 0},
+					},
+
+					Label{Text: "ПГС2"},
+					NumberEdit{
+						Decimals: 2,
+						AssignTo: &numberEditC[1],
+						MaxSize:  Size{90, 0},
+						MinSize:  Size{90, 0},
+					},
+
+					Label{Text: "ПГС3"},
+					NumberEdit{
+						Decimals: 2,
+						AssignTo: &numberEditC[2],
+						MaxSize:  Size{90, 0},
+						MinSize:  Size{90, 0},
+					},
+
+					Label{Text: "ПГС4"},
+					NumberEdit{
+						Decimals: 2,
+						AssignTo: &numberEditC[3],
+						MaxSize:  Size{90, 0},
+						MinSize:  Size{90, 0},
+					},
+
+					Label{Text: "Наименование обмера"},
+					LineEdit{
+						AssignTo: &lineEditMeasureName,
+					},
+				},
+			},
 
 			Composite{
 				Layout: HBox{},
@@ -145,7 +199,7 @@ func newApplicationWindow() MainWindow {
 					Composite{
 						Layout: VBox{
 							MarginsZero: true,
-							SpacingZero: true,
+							//SpacingZero: true,
 						},
 						Children: []Widget{
 							TableView{
@@ -156,118 +210,135 @@ func newApplicationWindow() MainWindow {
 								MultiSelection:           true,
 								NotSortableByHeaderClick: true,
 							},
-							Label{
-								AssignTo:  &labelCalcErr,
-								TextColor: walk.RGB(255, 0, 0),
+							LineEdit{
+								ReadOnly:   true,
+								Background: bgWhite,
+								AssignTo:   &labelCalcErr,
+								TextColor:  walk.RGB(255, 0, 0),
 							},
-							Label{
-								AssignTo:  &labelCurrentWork,
-								TextColor: walk.RGB(0, 0, 128),
-							},
-							ProgressBar{
-								AssignTo: &progressBarCurrentWork,
-								MaxValue: 100,
-							},
-							Label{
-								AssignTo:  &labelTotalWork,
-								TextColor: walk.RGB(0, 0, 128),
-								Text:      "Общий прогресс выполнения",
-							},
-							ProgressBar{
-								AssignTo: &progressBarTotalWork,
-								MaxValue: 100,
-							},
-						},
-					},
-					ScrollView{
-						AssignTo:        &scrollViewRight,
-						MaxSize:         Size{Height: 0, Width: 220},
-						MinSize:         Size{Height: 0, Width: 220},
-						HorizontalFixed: true,
-						Layout: VBox{
-							Alignment: AlignHCenterVCenter,
-							//SpacingZero:true,
-							MarginsZero: true,
-						},
-						Children: []Widget{
 
-							Label{Text: "СОМ порт вольтметра"},
-							ComboBoxComport(func() string {
-								return cfg.Get().Voltmeter.Comport
-							}, func(s string) {
-								updCfg(func(c *cfg.Config) {
-									c.Voltmeter.Comport = s
-								})
-							}),
-
-							Label{Text: "СОМ порт газового блока"},
-							ComboBoxComport(func() string {
-								return cfg.Get().Gas.Comport
-							}, func(s string) {
-								updCfg(func(c *cfg.Config) {
-									c.Gas.Comport = s
-								})
-							}),
-
-							Label{Text: "СОМ порт платы управления"},
-							ComboBoxComport(func() string {
-								return cfg.Get().Control.Comport
-							}, func(s string) {
-								updCfg(func(c *cfg.Config) {
-									c.Control.Comport = s
-								})
-							}),
-
-							Label{Text: "Исполнение"},
-							ComboBox{
-								AssignTo: &comboBoxDevice,
-								Editable: true,
-								MaxSize:  Size{100, 0},
-								OnCurrentIndexChanged: func() {
-									m := Calc.ListKinds(comboBoxDevice.Text())
-									must.PanicIf(comboBoxKind.SetModel(m))
-									if len(m) > 0 {
-										must.PanicIf(comboBoxKind.SetCurrentIndex(0))
-									}
+							Composite{
+								Layout: HBox{
+									MarginsZero: true,
+								},
+								Children: []Widget{
+									Label{
+										Text:          "Статус выполнения",
+										TextAlignment: AlignFar,
+										TextColor:     walk.RGB(0, 0, 128),
+										MinSize:       Size{Width: 180},
+									},
+									LineEdit{
+										AssignTo:   &labelWorkStatus,
+										ReadOnly:   true,
+										Background: bgWhite,
+										TextColor:  walk.RGB(0, 0, 128),
+									},
+									Label{
+										TextAlignment: AlignFar,
+										Text:          "Плата управления",
+										TextColor:     walk.RGB(0, 0, 128),
+										MinSize:       Size{Width: widthStatusLabelCaption},
+									},
+									ComboBoxComport(func() string {
+										return cfg.Get().ControlSheet.Comport
+									}, func(s string) {
+										updCfg(func(c *cfg.Config) {
+											c.ControlSheet.Comport = s
+										})
+									}),
+									LineEdit{
+										ReadOnly:   true,
+										Background: bgWhite,
+										AssignTo:   &labelControlSheet,
+										TextColor:  walk.RGB(0, 0, 128),
+									},
 								},
 							},
-							ComboBox{
-								AssignTo: &comboBoxKind,
-								Editable: true,
-								MaxSize:  Size{150, 0},
+							Composite{
+								Layout: HBox{
+									MarginsZero: true,
+								},
+								Children: []Widget{
+									Label{
+										TextAlignment: AlignFar,
+										Text:          "Вольтметр",
+										TextColor:     walk.RGB(0, 0, 128),
+									},
+									ComboBoxComport(func() string {
+										return cfg.Get().Voltmeter.Comport
+									}, func(s string) {
+										updCfg(func(c *cfg.Config) {
+											c.Voltmeter.Comport = s
+										})
+									}),
+									LineEdit{
+										Background: bgWhite,
+										ReadOnly:   true,
+										AssignTo:   &labelVoltmeter,
+										TextColor:  walk.RGB(0, 0, 128),
+									},
+									Label{
+										TextAlignment: AlignFar,
+										Text:          "Газовый блок",
+										TextColor:     walk.RGB(0, 0, 128),
+										MinSize:       Size{Width: widthStatusLabelCaption},
+									},
+									ComboBoxComport(func() string {
+										return cfg.Get().Gas.Comport
+									}, func(s string) {
+										updCfg(func(c *cfg.Config) {
+											c.Gas.Comport = s
+										})
+									}),
+									LineEdit{
+										Background: bgWhite,
+										ReadOnly:   true,
+										AssignTo:   &labelGasBlock,
+										TextColor:  walk.RGB(0, 0, 128),
+									},
+								},
 							},
 
-							Label{Text: "ПГС1"},
-							NumberEdit{
-								Decimals: 2,
-								AssignTo: &numberEditC[0],
-								MaxSize:  Size{40, 0},
+							Composite{
+								Layout: HBox{
+									MarginsZero: true,
+								},
+								Children: []Widget{
+									LineEdit{
+										TextAlignment: AlignFar,
+										ReadOnly:      true,
+										Background:    bgWhite,
+										AssignTo:      &labelCurrentDelay,
+										TextColor:     walk.RGB(0, 0, 128),
+									},
+									ProgressBar{
+										AssignTo:      &progressBarCurrentWork,
+										MaxValue:      100,
+										StretchFactor: 2,
+									},
+								},
 							},
 
-							Label{Text: "ПГС2"},
-							NumberEdit{
-								Decimals: 2,
-								AssignTo: &numberEditC[1],
-								MaxSize:  Size{40, 0},
-							},
-
-							Label{Text: "ПГС3"},
-							NumberEdit{
-								Decimals: 2,
-								AssignTo: &numberEditC[2],
-								MaxSize:  Size{40, 0},
-							},
-
-							Label{Text: "ПГС4"},
-							NumberEdit{
-								Decimals: 2,
-								AssignTo: &numberEditC[3],
-								MaxSize:  Size{40, 0},
-							},
-
-							Label{Text: "Наименование обмера"},
-							LineEdit{
-								AssignTo: &lineEditMeasureName,
+							Composite{
+								Layout: HBox{
+									MarginsZero: true,
+								},
+								Children: []Widget{
+									LineEdit{
+										TextAlignment: AlignFar,
+										ReadOnly:      true,
+										Background:    bgWhite,
+										AssignTo:      &labelTotalDelay,
+										TextColor:     walk.RGB(0, 0, 128),
+										Text:          "Общий прогресс выполнения",
+									},
+									ProgressBar{
+										AssignTo:      &progressBarTotalWork,
+										MaxValue:      100,
+										StretchFactor: 2,
+									},
+								},
 							},
 						},
 					},
@@ -279,6 +350,11 @@ func newApplicationWindow() MainWindow {
 
 func runWork(work func(ctx context.Context) error) {
 
+	setStatusOk(labelWorkStatus, "")
+	setStatusOk(labelVoltmeter, "")
+	setStatusOk(labelGasBlock, "")
+	setStatusOk(labelControlSheet, "")
+
 	setupWidgets := func(run bool) {
 		must.PanicIf(menuStop.SetVisible(run))
 		must.PanicIf(menuRunMeasure.SetVisible(!run))
@@ -287,7 +363,7 @@ func runWork(work func(ctx context.Context) error) {
 		if run {
 			groupBoxJournal.SetVisible(false)
 		}
-		scrollViewRight.SetVisible(!run)
+		scrollViewMeasurement.SetEnabled(!run)
 	}
 
 	setupWidgets(true)
@@ -302,8 +378,10 @@ func runWork(work func(ctx context.Context) error) {
 		appWindow.Synchronize(func() {
 			setupWidgets(false)
 			if err == nil || merry.Is(err, context.Canceled) {
+				setStatusOk(labelWorkStatus, "выполнение окончено успешно")
 				return
 			}
+			setStatusErr(labelWorkStatus, err)
 			walk.MsgBox(appWindow, "Произошла ошибка", err.Error(), walk.MsgBoxIconError)
 		})
 	}()
@@ -353,10 +431,17 @@ var (
 	menuRunInterrogate *walk.Action
 	tableViewMeasure *walk.TableView
 	tableViewArch    *walk.TableView
-	labelCalcErr     *walk.Label
+	labelCalcErr     *walk.LineEdit
 
-	labelCurrentWork       *walk.Label
-	labelTotalWork         *walk.Label
+	scrollViewMeasurement *walk.ScrollView
+
+	labelWorkStatus,
+	labelControlSheet,
+	labelVoltmeter,
+	labelGasBlock *walk.LineEdit
+
+	labelCurrentDelay      *walk.LineEdit
+	labelTotalDelay        *walk.LineEdit
 	progressBarCurrentWork *walk.ProgressBar
 	progressBarTotalWork   *walk.ProgressBar
 
@@ -366,8 +451,6 @@ var (
 	comboBoxKind        *walk.ComboBox
 
 	numberEditC [4]*walk.NumberEdit
-
-	scrollViewRight *walk.ScrollView
 
 	appWindow *walk.MainWindow
 

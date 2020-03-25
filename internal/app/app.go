@@ -44,8 +44,8 @@ func Main() {
 	must.PanicIf(newApplicationWindow().Create())
 
 	// инициализация виджетов
-	labelCurrentWork.SetVisible(false)
-	labelTotalWork.SetVisible(false)
+	labelCurrentDelay.SetVisible(false)
+	labelTotalDelay.SetVisible(false)
 	progressBarCurrentWork.SetVisible(false)
 	progressBarTotalWork.SetVisible(false)
 	go trackRegChangeComport()

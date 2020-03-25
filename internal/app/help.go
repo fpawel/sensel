@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
-	"github.com/lxn/walk/declarative"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func msgBoxErr(msg string) {
@@ -28,21 +28,47 @@ func panicMsgBox(x interface{}) {
 	}
 }
 
-func newTableViewColumn(tvc declarative.TableViewColumn) *walk.TableViewColumn {
-	w := walk.NewTableViewColumn()
-	must.PanicIf(w.SetAlignment(walk.Alignment1D(tvc.Alignment)))
-	w.SetDataMember(tvc.DataMember)
-	if tvc.Format != "" {
-		must.PanicIf(w.SetFormat(tvc.Format))
-	}
-	must.PanicIf(w.SetPrecision(tvc.Precision))
-	w.SetName(tvc.Name)
-	must.PanicIf(w.SetTitle(tvc.Title))
+func setStatusOkSync(label *walk.LineEdit, text string) {
+	appWindow.Synchronize(func() {
+		setStatusOk(label, text)
+	})
+}
 
-	must.PanicIf(w.SetVisible(!tvc.Hidden))
-	must.PanicIf(w.SetFrozen(tvc.Frozen))
-	must.PanicIf(w.SetWidth(tvc.Width))
-	w.SetLessFunc(tvc.LessFunc)
-	w.SetFormatFunc(tvc.FormatFunc)
-	return w
+func setStatusErrSync(label *walk.LineEdit, err error) {
+	appWindow.Synchronize(func() {
+		setStatusErr(label, err)
+	})
+}
+
+func setStatusOk(label *walk.LineEdit, text string) {
+	setStatusText(label, true, text)
+}
+
+func setStatusErr(label *walk.LineEdit, err error) {
+	setStatusText(label, false, err.Error())
+}
+
+func setStatusText(label *walk.LineEdit, ok bool, text string) {
+	must.PanicIf(label.SetText(time.Now().Format("15:04:05") + " " + text))
+
+	var color walk.Color
+	if ok {
+		color = walk.RGB(0, 0, 128)
+	} else {
+		color = walk.RGB(255, 0, 0)
+	}
+	label.SetTextColor(color)
+}
+
+func pause(chDone <-chan struct{}, d time.Duration) {
+	timer := time.NewTimer(d)
+	for {
+		select {
+		case <-timer.C:
+			return
+		case <-chDone:
+			timer.Stop()
+			return
+		}
+	}
 }
