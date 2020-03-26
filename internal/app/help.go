@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
 	"os"
@@ -9,6 +10,11 @@ import (
 	"strings"
 	"time"
 )
+
+func formatMeasureInfo(m data.MeasurementInfo) string {
+	return fmt.Sprintf("%4d - %s - %s %s - %q",
+		m.MeasurementID, m.CreatedAt.Format("2006.01.02 15:04"), m.Device, m.Kind, m.Name)
+}
 
 func msgBoxErr(msg string) {
 	dir := filepath.Dir(os.Args[0])

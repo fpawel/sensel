@@ -1,6 +1,5 @@
 
--- ГКС платины
-local gammaPlatinum = 0.00385
+
 
 -- нижний концентрационный предел распространения пламени CH4, проценты объёмных долей
 local lowerFlammabilityLimitCH4 = 4.4
@@ -16,6 +15,8 @@ export.Devices =  {
             },
             Calculate = function(U, I, T, C)
 
+                -- ГКС платины
+                local gammaPlatinum = 0.00385
 
                 local R0 = U[1] / (I[1] * (1 + gammaPlatinum * T[1]))
 
@@ -88,6 +89,10 @@ export.Devices =  {
                 sample(2, "1m30s", 105, 50)
             },
             Calculate = function(U, I, T, C)
+
+                -- ГКС платины
+                local gammaPlatinum = 0.00385
+
                 local R0 = U[1] / (I[1] * (1 + gammaPlatinum * T[1]))
 
                 local Ur = U[2]
@@ -161,6 +166,10 @@ export.Devices =  {
                 sample(2, "1m30s", 105, 50)
             },
             Calculate = function(U, I, T, C)
+
+                -- ГКС платины
+                local gammaPlatinum = 0.00385
+
                 local R0 = U[1] / (I[1] * (1 + gammaPlatinum * T[1]))
 
                 local Ur = U[2]
@@ -232,6 +241,10 @@ export.Devices =  {
                 sample(2, "1m30s", 105, 50)
             },
             Calculate = function(U, I, T, C)
+
+                -- ГКС платины
+                local gammaPlatinum = 0.00385
+
                 local R0 = U[1] / (I[1] * (1 + gammaPlatinum * T[1]))
 
                 local Ur = U[2]

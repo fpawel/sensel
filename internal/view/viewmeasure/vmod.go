@@ -25,7 +25,6 @@ func NewMainTableViewModel(tv *walk.TableView) *TableViewModel {
 	x := &TableViewModel{
 		tv: tv,
 	}
-
 	must.PanicIf(tv.SetModel(x))
 	return x
 }

@@ -51,15 +51,22 @@ func Main() {
 	go trackRegChangeComport()
 
 	// инициализация модели представления
+	{
+		var arch []data.MeasurementInfo
+		must.PanicIf(data.ListArchive(db, &arch))
+
+		var cbm []string
+		for _, x := range arch {
+			cbm = append(cbm, formatMeasureInfo(x))
+		}
+		must.PanicIf(comboboxMeasure.SetModel(cbm))
+	}
+
 	var measurement data.Measurement
 	_ = data.GetLastMeasurement(db, &measurement)
 	viewmeasure.NewMainTableViewModel(tableViewMeasure)
 
 	setMeasurement(measurement)
-
-	var archive []data.MeasurementInfo
-	must.PanicIf(data.ListArchive(db, &archive))
-	getArchiveTableViewModel().SetViewData(archive)
 
 	if !win.ShowWindow(appWindow.Handle(), win.SW_SHOWMAXIMIZED) {
 		panic("can`t show window")

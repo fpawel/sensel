@@ -10,24 +10,20 @@ import (
 	"time"
 )
 
-func runMeasure() {
+func runMeasure(measurement data.Measurement) {
 
-	measurement := data.Measurement{
-		MeasurementInfo: data.MeasurementInfo{
-			CreatedAt: time.Now(),
-			Device:    comboBoxDevice.Text(),
-			Kind:      comboBoxKind.Text(),
-			Name:      lineEditMeasureName.Text(),
-		},
-	}
-	for i := 0; i < 4; i++ {
-		measurement.Pgs = append(measurement.Pgs, numberEditC[i].Value())
-	}
-	setMeasurement(measurement)
 	runWork(func(ctx context.Context) error {
-		scheme, err := Calc.GetProductTypeMeasurementScheme(comboBoxDevice.Text(), comboBoxKind.Text())
+
+		defer func() {
+			setStatusOkSync(labelWorkStatus, "Отключение газа по окончании обмера")
+			if err := switchOffGas(log, context.Background()); err != nil {
+				log.PrintErr(err)
+			}
+		}()
+
+		scheme, err := Calc.GetProductTypeMeasurementScheme(measurement.Device, measurement.Kind)
 		if err != nil {
-			return fmt.Errorf("%s: %s: %w", comboBoxDevice.Text(), comboBoxKind.Text(), err)
+			return fmt.Errorf("%s: %s: %w", measurement.Device, measurement.Kind, err)
 		}
 
 		for nSample, smp := range scheme {
