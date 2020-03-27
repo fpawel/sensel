@@ -38,16 +38,15 @@ func runMeasure(measurement data.Measurement) {
 				Gas: smp.Gas,
 				Ub:  smp.Tension,
 			}
+			if err := setupMeasurement(log, ctx, smp); err != nil {
+				return err
+			}
 			if err := readBar(log, ctx, &dataSmp); err != nil {
 				return err
 			}
 			measurement.Samples = append(measurement.Samples, dataSmp)
-			appWindow.Synchronize(func() {
-				setMeasurement(measurement)
-			})
-			if err := setupMeasurement(log, ctx, smp); err != nil {
-				return err
-			}
+			setMeasurement(measurement)
+
 			ctxDelay, _ := context.WithTimeout(ctx, smp.Duration)
 			if err := delay(log, ctxDelay, &measurement, scheme); err != nil {
 				return err
@@ -70,9 +69,7 @@ func readAndSaveCurrentSample(log comm.Logger, ctx context.Context, m *data.Meas
 	if err := data.SaveMeasurement(db, m); err != nil {
 		return err
 	}
-	appWindow.Synchronize(func() {
-		setMeasurement(*m)
-	})
+	setMeasurement(*m)
 	return nil
 }
 

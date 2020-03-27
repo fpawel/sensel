@@ -8,7 +8,7 @@ export.Devices =  {
     ['СТМ-30'] = {
         ['измерительный'] = {
             Samples = {
-                sample(1, "1m", 5, 10),
+                sample(1, "1m", 50, 10),
                 sample(1, "1m30s", 105, 50),
                 sample(2, "1m30s", 105, 50),
                 sample(2, "1m30s", 105, 50)

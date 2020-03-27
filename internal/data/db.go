@@ -72,8 +72,10 @@ ON CONFLICT (measurement_id) DO UPDATE SET device = :device, kind = :kind, name=
 		return err
 	}
 
+	insert := m.MeasurementID == 0
+
 	var measurementID interface{} = nil
-	if m.MeasurementID > 0 {
+	if !insert {
 		measurementID = m.MeasurementID
 	}
 
@@ -97,9 +99,14 @@ ON CONFLICT (measurement_id) DO UPDATE SET device = :device, kind = :kind, name=
 		return fmt.Errorf("excpected 1 rows inserted, got %d", n)
 	}
 
-	if id, err := r.LastInsertId(); err == nil {
+	if insert {
+		id, err := r.LastInsertId()
+		if err != nil {
+			return err
+		}
 		m.MeasurementID = id
 	}
+
 	return nil
 }
 

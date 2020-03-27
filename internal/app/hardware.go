@@ -208,13 +208,13 @@ func readVoltmeter(log comm.Logger, ctx context.Context, smp *data.Sample) error
 		}
 	}
 
-	Ui, err := strconv.ParseFloat(xsStr[16], 64)
+	Ui, err := strconv.ParseFloat(xsStr[17], 64)
 	if err != nil {
 		err := fmt.Errorf("%s: позиция %d: %w", string(b), 16, err)
 		setStatusErrSync(labelVoltmeter, err)
 		return fmt.Errorf("вольтметр: %w", err)
 	}
-	smp.I = Ui / 30.1
+	smp.I = math.Abs(Ui) / 30.1
 	setStatusOkSync(labelVoltmeter, s)
 	return nil
 }

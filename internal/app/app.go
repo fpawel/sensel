@@ -5,7 +5,6 @@ import (
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
-	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
@@ -51,22 +50,7 @@ func Main() {
 	go trackRegChangeComport()
 
 	// инициализация модели представления
-	{
-		var arch []data.MeasurementInfo
-		must.PanicIf(data.ListArchive(db, &arch))
-
-		var cbm []string
-		for _, x := range arch {
-			cbm = append(cbm, formatMeasureInfo(x))
-		}
-		must.PanicIf(comboboxMeasure.SetModel(cbm))
-	}
-
-	var measurement data.Measurement
-	_ = data.GetLastMeasurement(db, &measurement)
-	viewmeasure.NewMainTableViewModel(tableViewMeasure)
-
-	setMeasurement(measurement)
+	setupLastMeasurementView()
 
 	if !win.ShowWindow(appWindow.Handle(), win.SW_SHOWMAXIMIZED) {
 		panic("can`t show window")

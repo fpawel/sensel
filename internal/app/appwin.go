@@ -42,6 +42,14 @@ func newApplicationWindow() MainWindow {
 		},
 		MenuItems: []MenuItem{
 			Action{
+				AssignTo: &menuStop,
+				Text:     "Прервать",
+				Visible:  false,
+				OnTriggered: func() {
+					interruptWorkFunc()
+				},
+			},
+			Action{
 				AssignTo:    &menuRunInterrogate,
 				Text:        "Опрос",
 				OnTriggered: runReadSample,
@@ -55,42 +63,13 @@ func newApplicationWindow() MainWindow {
 						return
 					}
 					must.PanicIf(data.SaveMeasurement(db, &m))
-					xs := comboboxMeasure.Model().([]string)
+					xs := comboboxMeasurements.Model().([]string)
 					xs = append([]string{formatMeasureInfo(m.MeasurementInfo)}, xs...)
-					comboboxMeasure.CurrentIndexChanged().Detach(0)
-					must.PanicIf(comboboxMeasure.SetModel(xs))
-					comboboxMeasure.CurrentIndexChanged().Attach(comboboxArchCurrentIndexChanged)
+					handleComboboxMeasurements = false
+					must.PanicIf(comboboxMeasurements.SetModel(xs))
+					handleComboboxMeasurements = true
 					setMeasurement(m)
 					runMeasure(m)
-				},
-			},
-			Action{
-				AssignTo: &menuStop,
-				Text:     "Прервать",
-				Visible:  false,
-				OnTriggered: func() {
-					interruptWorkFunc()
-				},
-			},
-			Action{
-				Text:     "Журнал",
-				AssignTo: &menuJournal,
-				OnTriggered: func() {
-					//groupBoxJournal.SetVisible(!groupBoxJournal.Visible())
-					appWindow.Hide()
-					defer func() {
-						appWindow.Show()
-					}()
-
-					archWin := new(archiveWindow)
-					must.PanicIf(archWin.Window().Create())
-					archWin.init()
-					//if !win.ShowWindow(archWin.win.Handle(), win.SW_SHOWMAXIMIZED) {
-					//	panic("can`t show window")
-					//}
-					archWin.win.Run()
-					must.PanicIf(archWin.win.Close())
-					archWin.win.Dispose()
 				},
 			},
 		},
@@ -115,8 +94,18 @@ func newApplicationWindow() MainWindow {
 								Text: "Измерение:",
 							},
 							ComboBox{
-								AssignTo:              &comboboxMeasure,
-								OnCurrentIndexChanged: comboboxArchCurrentIndexChanged,
+								AssignTo:              &comboboxMeasurements,
+								OnCurrentIndexChanged: comboboxMeasurementsCurrentIndexChanged,
+								ContextMenuItems: []MenuItem{
+									Action{
+										Text:        "Ввести коментарий",
+										OnTriggered: runCurrentMeasurementNameDialog,
+									},
+									Action{
+										Text:        "Удалить",
+										OnTriggered: deleteCurrentMeasurement,
+									},
+								},
 							},
 						},
 					},
@@ -158,7 +147,7 @@ func newApplicationWindow() MainWindow {
 								TextColor:     walk.RGB(0, 0, 128),
 								MinSize:       Size{Width: widthStatusLabelCaption},
 							},
-							ComboBoxComport(func() string {
+							comboBoxComport(func() string {
 								return cfg.Get().ControlSheet.Comport
 							}, func(s string) {
 								updCfg(func(c *cfg.Config) {
@@ -183,7 +172,7 @@ func newApplicationWindow() MainWindow {
 								Text:          "Вольтметр",
 								TextColor:     walk.RGB(0, 0, 128),
 							},
-							ComboBoxComport(func() string {
+							comboBoxComport(func() string {
 								return cfg.Get().Voltmeter.Comport
 							}, func(s string) {
 								updCfg(func(c *cfg.Config) {
@@ -202,7 +191,7 @@ func newApplicationWindow() MainWindow {
 								TextColor:     walk.RGB(0, 0, 128),
 								MinSize:       Size{Width: widthStatusLabelCaption},
 							},
-							ComboBoxComport(func() string {
+							comboBoxComport(func() string {
 								return cfg.Get().Gas.Comport
 							}, func(s string) {
 								updCfg(func(c *cfg.Config) {
@@ -262,22 +251,127 @@ func newApplicationWindow() MainWindow {
 	}
 }
 
-func getSelectedMeasurementID() int64 {
-	s := comboboxMeasure.Text()
-	xs := strings.Fields(s)
-	if len(xs) == 0 {
-		panic("unexpected")
+func setupLastMeasurementView() {
+	handleComboboxMeasurements = false
+	defer func() {
+		handleComboboxMeasurements = true
+	}()
+
+	var arch []data.MeasurementInfo
+	must.PanicIf(data.ListArchive(db, &arch))
+
+	var cbm []string
+	for _, x := range arch {
+		cbm = append(cbm, formatMeasureInfo(x))
 	}
-	measurementID, err := strconv.ParseInt(xs[0], 10, 64)
-	must.PanicIf(err)
-	return measurementID
+	must.PanicIf(comboboxMeasurements.SetModel(cbm))
+
+	var measurement data.Measurement
+	_ = data.GetLastMeasurement(db, &measurement)
+	viewmeasure.NewMainTableViewModel(tableViewMeasure)
+
+	setMeasurement(measurement)
 }
 
-func comboboxArchCurrentIndexChanged() {
+func comboboxMeasurementsCurrentIndexChanged() {
+	if !handleComboboxMeasurements {
+		return
+	}
+	measurementID, err := getSelectedMeasurementID()
+	if err != nil {
+		setMeasurement(data.Measurement{})
+		return
+	}
+
 	var m data.Measurement
-	m.MeasurementID = getSelectedMeasurementID()
+	m.MeasurementID = measurementID
 	must.PanicIf(data.GetMeasurement(db, &m))
 	setMeasurement(m)
+}
+
+func runCurrentMeasurementNameDialog() {
+	measurementID, err := getSelectedMeasurementID()
+	if err != nil {
+		return
+	}
+	var m data.Measurement
+	m.MeasurementID = measurementID
+	if err := data.GetMeasurement(db, &m); err != nil {
+		return
+	}
+
+	var (
+		ed  *walk.LineEdit
+		dlg *walk.Dialog
+	)
+
+	r, err := Dialog{
+		Font: Font{
+			Family:    "Segoe UI",
+			PointSize: 12,
+		},
+		MinSize:  Size{280, 180},
+		MaxSize:  Size{280, 180},
+		AssignTo: &dlg,
+		Title:    "Ввод комментария обмера",
+		Layout:   VBox{},
+		Children: []Widget{
+			LineEdit{
+				AssignTo: &ed,
+				OnTextChanged: func() {
+					m.Name = ed.Text()
+				},
+				Text: m.Name,
+			},
+			PushButton{
+				Text: "Применить",
+				OnClicked: func() {
+					dlg.Accept()
+				},
+			},
+			PushButton{
+				Text: "Отмена",
+				OnClicked: func() {
+					dlg.Cancel()
+				},
+			},
+		},
+	}.Run(appWindow)
+	must.PanicIf(err)
+	if r != walk.DlgCmdOK {
+		return
+	}
+	must.PanicIf(data.SaveMeasurement(db, &m))
+
+	xs := comboboxMeasurements.Model().([]string)
+	n := comboboxMeasurements.CurrentIndex()
+	if n < 0 || n >= len(xs) {
+		return
+	}
+	xs[n] = formatMeasureInfo(m.MeasurementInfo)
+	handleComboboxMeasurements = false
+	must.PanicIf(comboboxMeasurements.SetModel(xs))
+	must.PanicIf(comboboxMeasurements.SetCurrentIndex(n))
+	handleComboboxMeasurements = true
+
+}
+
+func deleteCurrentMeasurement() {
+	measurementID, err := getSelectedMeasurementID()
+	if err != nil {
+		return
+	}
+	db.MustExec(`DELETE FROM measurement WHERE measurement_id=?`, measurementID)
+	setupLastMeasurementView()
+}
+
+func getSelectedMeasurementID() (int64, error) {
+	s := comboboxMeasurements.Text()
+	xs := strings.Fields(s)
+	if len(xs) == 0 {
+		return 0, errors.New("not a measurement id")
+	}
+	return strconv.ParseInt(xs[0], 10, 64)
 }
 
 func runWork(work func(ctx context.Context) error) {
@@ -290,7 +384,7 @@ func runWork(work func(ctx context.Context) error) {
 		must.PanicIf(menuStop.SetVisible(run))
 		must.PanicIf(menuRunMeasure.SetVisible(!run))
 		must.PanicIf(menuRunInterrogate.SetVisible(!run))
-		must.PanicIf(menuJournal.SetVisible(!run))
+		//must.PanicIf(menuJournal.SetVisible(!run))
 	}
 
 	setupWidgets(true)
@@ -324,35 +418,35 @@ func getMeasureTableViewModel() *viewmeasure.TableViewModel {
 }
 
 func setMeasurement(m data.Measurement) {
-	must.PanicIf(appWindow.SetTitle(fmt.Sprintf("Измерение №%d %s",
-		m.MeasurementID, m.CreatedAt.Format("02.01.06 15:04"))))
+	appWindow.Synchronize(func() {
+		must.PanicIf(appWindow.SetTitle(fmt.Sprintf("Измерение №%d %s",
+			m.MeasurementID, m.CreatedAt.Format("02.01.06 15:04"))))
 
-	calcCols, err := Calc.CalculateMeasure(m)
-	if err != nil {
-		must.PanicIf(labelCalcErr.SetText("Расчёт: " + err.Error()))
-		labelCalcErr.SetVisible(true)
-	} else {
-		labelCalcErr.SetVisible(false)
-	}
-	getMeasureTableViewModel().SetViewData(m, calcCols)
-
-	for i, x := range comboboxMeasure.Model().([]string) {
-		if x == formatMeasureInfo(m.MeasurementInfo) {
-			comboboxMeasure.CurrentIndexChanged().Detach(0)
-			must.PanicIf(comboboxMeasure.SetCurrentIndex(i))
-			comboboxMeasure.CurrentIndexChanged().Attach(comboboxArchCurrentIndexChanged)
-			break
+		calcCols, err := Calc.CalculateMeasure(m)
+		if err != nil {
+			must.PanicIf(labelCalcErr.SetText("Расчёт: " + err.Error()))
+			labelCalcErr.SetVisible(true)
+		} else {
+			labelCalcErr.SetVisible(false)
 		}
-	}
+		getMeasureTableViewModel().SetViewData(m, calcCols)
+
+		for i, x := range comboboxMeasurements.Model().([]string) {
+			if x == formatMeasureInfo(m.MeasurementInfo) {
+				handleComboboxMeasurements = false
+				must.PanicIf(comboboxMeasurements.SetCurrentIndex(i))
+				handleComboboxMeasurements = true
+				break
+			}
+		}
+	})
 }
 
 var (
-	menuJournal,
 	menuStop,
 	menuRunMeasure,
 	menuRunInterrogate *walk.Action
 	tableViewMeasure *walk.TableView
-	tableViewArch    *walk.TableView
 	labelCalcErr     *walk.LineEdit
 
 	labelWorkStatus,
@@ -365,7 +459,9 @@ var (
 	progressBarCurrentWork *walk.ProgressBar
 	progressBarTotalWork   *walk.ProgressBar
 
-	comboboxMeasure *walk.ComboBox
+	comboboxMeasurements *walk.ComboBox
+
+	handleComboboxMeasurements bool
 
 	appWindow *walk.MainWindow
 

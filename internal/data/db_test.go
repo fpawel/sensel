@@ -35,33 +35,36 @@ func TestCreateDB(t *testing.T) {
 
 	tm := time.Now()
 	for i := 0; i < 100; i++ {
-		samples := make([]Sample, 5)
-		randSamples(samples)
-		for i := range samples {
-			samples[i].Tm = tm
-			tm = tm.Add(-time.Hour)
-		}
-		m := Measurement{
-			MeasurementInfo: MeasurementInfo{
-				CreatedAt: tm,
-				Device:    "СТМ-30",
-				Kind:      "измерительный",
-			},
-			MeasurementData: MeasurementData{
-				Pgs:     []float64{rand3(), rand3(), rand3(), rand3(), rand3()},
-				Samples: samples,
-			},
-		}
 		tm = tm.Add(-time.Hour * 24)
-		require.NoError(t, SaveMeasurement(db, &m), fmt.Sprintf("%+v", m))
+		for j := 0; j < 10; j++ {
+			samples := make([]Sample, 5)
+			randSamples(samples)
+			for i := range samples {
+				samples[i].Tm = tm
+				tm = tm.Add(-time.Hour)
+			}
+			m := Measurement{
+				MeasurementInfo: MeasurementInfo{
+					CreatedAt: tm,
+					Device:    "СТМ-30",
+					Kind:      "измерительный",
+				},
+				MeasurementData: MeasurementData{
+					Pgs:     []float64{rand3(), rand3(), rand3(), rand3(), rand3()},
+					Samples: samples,
+				},
+			}
+			tm = tm.Add(-time.Hour)
+			require.NoError(t, SaveMeasurement(db, &m), fmt.Sprintf("%+v", m))
 
-		m.Name = fmt.Sprintf("%v", m.CreatedAt)
-		require.NoError(t, SaveMeasurement(db, &m), fmt.Sprintf("%+v", m))
+			m.Name = fmt.Sprintf("%v", m.CreatedAt)
+			require.NoError(t, SaveMeasurement(db, &m), fmt.Sprintf("%+v", m))
 
-		var m1 Measurement
-		m1.MeasurementID = m.MeasurementID
-		require.NoError(t, GetMeasurement(db, &m1))
-		cmpreport.AssertEqual(t, m, m1)
+			var m1 Measurement
+			m1.MeasurementID = m.MeasurementID
+			require.NoError(t, GetMeasurement(db, &m1))
+			cmpreport.AssertEqual(t, m, m1)
+		}
 	}
 }
 

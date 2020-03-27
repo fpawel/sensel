@@ -113,7 +113,7 @@ func runDialogMeasurement() (data.Measurement, bool) {
 						Value:          pgs(3),
 						OnValueChanged: onEditPgs(3),
 					},
-					Label{Text: "Наименование"},
+					Label{Text: "Комменттарий"},
 					LineEdit{
 						AssignTo: &edName,
 						OnTextChanged: func() {
@@ -154,7 +154,7 @@ func runDialogMeasurement() (data.Measurement, bool) {
 	return m, r == walk.DlgCmdOK
 }
 
-func ComboBoxComport(getComportNameFunc func() string, setComportNameFunc func(string)) ComboBox {
+func comboBoxComport(getComportNameFunc func() string, setComportNameFunc func(string)) ComboBox {
 	var comboBoxComport *walk.ComboBox
 	ports, _ := comport.Ports()
 	sort.Strings(ports)
