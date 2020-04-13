@@ -53,3 +53,12 @@ func (m Measurement) U(n int) (xs []float64) {
 	}
 	return
 }
+
+func (m Measurement) Br(n int) bool {
+	for _, smp := range m.Samples {
+		if smp.Br[n] {
+			return true
+		}
+	}
+	return false
+}

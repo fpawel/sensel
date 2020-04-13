@@ -1,6 +1,6 @@
 .idea
 build/*
-!build/img
+!build/assets/
 !build/lua
 !build/sensel.exe.manifest
 internal/thriftgen

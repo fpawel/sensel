@@ -7,6 +7,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
+	"github.com/fpawel/sensel/internal/pdf"
 	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/fpawel/sensel/internal/view/viewmeasure"
@@ -71,6 +72,10 @@ func newApplicationWindow() MainWindow {
 					setMeasurement(m)
 					runMeasure(m)
 				},
+			},
+			Action{
+				Text:        "Отчёт",
+				OnTriggered: newReport,
 			},
 		},
 		Children: []Widget{
@@ -287,6 +292,30 @@ func comboboxMeasurementsCurrentIndexChanged() {
 	m.MeasurementID = measurementID
 	must.PanicIf(data.GetMeasurement(db, &m))
 	setMeasurement(m)
+}
+
+func newReport() {
+	if err := func() error {
+		measurementID, err := getSelectedMeasurementID()
+		if err != nil {
+			return err
+		}
+		var m data.Measurement
+		m.MeasurementID = measurementID
+		if err := data.GetMeasurement(db, &m); err != nil {
+			return err
+		}
+		calcCols, err := Calc.CalculateMeasure(m)
+		if err != nil {
+			return err
+		}
+		if err := pdf.New(m, calcCols); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		msgBoxErr(err.Error())
+	}
 }
 
 func runCurrentMeasurementNameDialog() {

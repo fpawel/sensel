@@ -123,13 +123,13 @@ func (x *TableViewModel) StyleCell(s *walk.CellStyle) {
 	if s.Col() == 0 && s.Row() < 16 {
 		for _, smp := range x.d.Samples {
 			if smp.Br[s.Row()] {
-				s.Image = "img/error_circle.png"
+				s.Image = "assets/img/error_circle.png"
 				return
 			}
 		}
 		for _, c := range x.cs {
 			if c.IsErr(s.Row()) {
-				s.Image = "img/error.png"
+				s.Image = "assets/img/error.png"
 				return
 			}
 		}
@@ -138,7 +138,7 @@ func (x *TableViewModel) StyleCell(s *walk.CellStyle) {
 	nSamp := s.Col() - 1
 	if s.Row() < 16 && nSamp >= 0 && nSamp < len(x.d.Samples) {
 		if x.d.Samples[nSamp].Br[s.Row()] {
-			s.Image = "img/error_circle.png"
+			s.Image = "assets/img/error_circle.png"
 		}
 		return
 	}
@@ -148,7 +148,7 @@ func (x *TableViewModel) StyleCell(s *walk.CellStyle) {
 		return
 	}
 	if x.cs[nCalc].IsErr(s.Row()) {
-		s.Image = "img/error.png"
+		s.Image = "assets/img/error.png"
 		s.TextColor = walk.RGB(255, 0, 0)
 	} else {
 		s.TextColor = walk.RGB(0, 0, 128)
