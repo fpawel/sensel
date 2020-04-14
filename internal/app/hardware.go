@@ -98,6 +98,23 @@ func setupTensionBar(log comm.Logger, ctx context.Context, U float64) error {
 	return nil
 }
 
+func setupPlaceConnection(log comm.Logger, ctx context.Context, n int) error {
+	setStatusOkSync(labelControlSheet, fmt.Sprintf("установка реле %d", n))
+	c := cfg.Get()
+	log = structloge.PrependSuffixKeys(log, "COMPORT", c.ControlSheet.Comport)
+
+	_, err := modbus.Request{
+		Addr:     1,
+		ProtoCmd: 0x10,
+		Data:     []byte{0x00, 0x50, 0x00, 0x01, 0x02, 0x00, byte(n)},
+	}.GetResponse(log, ctx, c.CommControl())
+	if err != nil {
+		setStatusErrSync(labelControlSheet, err)
+		return fmt.Errorf("стенд: %s: %w", c.ControlSheet.Comm.Comport, err)
+	}
+	return nil
+}
+
 func setupCurrentBar(log comm.Logger, ctx context.Context, I float64) error {
 
 	setStatusOkSync(labelControlSheet, fmt.Sprintf("установка тока %v", I))

@@ -50,32 +50,80 @@ func newApplicationWindow() MainWindow {
 					interruptWorkFunc()
 				},
 			},
+
 			Action{
-				AssignTo:    &menuRunInterrogate,
-				Text:        "Опрос",
-				OnTriggered: runReadSample,
+				AssignTo:    &menuRunMeasure,
+				Text:        "Обмер",
+				OnTriggered: startMeasure,
 			},
-			Action{
-				AssignTo: &menuRunMeasure,
-				Text:     "Обмер",
-				OnTriggered: func() {
-					m, ok := runDialogMeasurement()
-					if !ok {
-						return
-					}
-					must.PanicIf(data.SaveMeasurement(db, &m))
-					xs := comboboxMeasurements.Model().([]string)
-					xs = append([]string{formatMeasureInfo(m.MeasurementInfo)}, xs...)
-					handleComboboxMeasurements = false
-					must.PanicIf(comboboxMeasurements.SetModel(xs))
-					handleComboboxMeasurements = true
-					setMeasurement(m)
-					runMeasure(m)
+			Menu{
+				AssignTo: &menuControl,
+				Text:     "Управление",
+				Items: []MenuItem{
+					Action{
+						Text:        "Опрос вольтметра",
+						OnTriggered: runReadSample,
+					},
+					Action{
+						Text: "Поиск обрыва",
+					},
+					Action{
+						Text: "Установить напряжение",
+						OnTriggered: func() {
+							value, ok := runDialogFloat1(10, "Установить напряжение",
+								"Введите значение напряжения", 1, 0, 100)
+							if !ok {
+								return
+							}
+							runWork(func(ctx context.Context) error {
+								if err := setupTensionBar(log, ctx, value); err != nil {
+									return err
+								}
+								return nil
+							})
+						},
+					},
+					Action{
+						Text: "Установить ток",
+						OnTriggered: func() {
+							value, ok := runDialogFloat1(10, "Установить ток",
+								"Введите значение тока", 1, 0, 1000)
+							if !ok {
+								return
+							}
+							runWork(func(ctx context.Context) error {
+								if err := setupCurrentBar(log, ctx, value); err != nil {
+									return err
+								}
+								return nil
+							})
+						},
+					},
+					Action{
+						Text: "Включить место",
+						OnTriggered: func() {
+							value, ok := runDialogFloat1(0, "Включить место",
+								"Введите номер места", 0, 0, 16)
+							if !ok {
+								return
+							}
+							runWork(func(ctx context.Context) error {
+								if err := setupPlaceConnection(log, ctx, int(value)); err != nil {
+									return err
+								}
+								return nil
+							})
+						},
+					},
 				},
 			},
 			Action{
 				Text:        "Отчёт",
 				OnTriggered: newReport,
+			},
+			Action{
+				Text:        "Настройка",
+				OnTriggered: runAppSettingsDialog,
 			},
 		},
 		Children: []Widget{
@@ -309,80 +357,18 @@ func newReport() {
 		if err != nil {
 			return err
 		}
-		if err := pdf.New(m, calcCols); err != nil {
+		c := cfg.Get().Table
+		if err := pdf.New(m, calcCols, pdf.TableConfig{
+			RowHeightMM:      c.RowHeightMM,
+			CellHorizSpaceMM: c.CellHorizSpaceMM,
+			FontSizePixels:   c.FontSizePixels,
+		}); err != nil {
 			return err
 		}
 		return nil
 	}(); err != nil {
 		msgBoxErr(err.Error())
 	}
-}
-
-func runCurrentMeasurementNameDialog() {
-	measurementID, err := getSelectedMeasurementID()
-	if err != nil {
-		return
-	}
-	var m data.Measurement
-	m.MeasurementID = measurementID
-	if err := data.GetMeasurement(db, &m); err != nil {
-		return
-	}
-
-	var (
-		ed  *walk.LineEdit
-		dlg *walk.Dialog
-	)
-
-	r, err := Dialog{
-		Font: Font{
-			Family:    "Segoe UI",
-			PointSize: 12,
-		},
-		MinSize:  Size{280, 180},
-		MaxSize:  Size{280, 180},
-		AssignTo: &dlg,
-		Title:    "Ввод комментария обмера",
-		Layout:   VBox{},
-		Children: []Widget{
-			LineEdit{
-				AssignTo: &ed,
-				OnTextChanged: func() {
-					m.Name = ed.Text()
-				},
-				Text: m.Name,
-			},
-			PushButton{
-				Text: "Применить",
-				OnClicked: func() {
-					dlg.Accept()
-				},
-			},
-			PushButton{
-				Text: "Отмена",
-				OnClicked: func() {
-					dlg.Cancel()
-				},
-			},
-		},
-	}.Run(appWindow)
-	must.PanicIf(err)
-	if r != walk.DlgCmdOK {
-		return
-	}
-	must.PanicIf(data.SaveMeasurement(db, &m))
-
-	xs := comboboxMeasurements.Model().([]string)
-	n := comboboxMeasurements.CurrentIndex()
-	if n < 0 || n >= len(xs) {
-		return
-	}
-	xs[n] = formatMeasureInfo(m.MeasurementInfo)
-	handleComboboxMeasurements = false
-	must.PanicIf(comboboxMeasurements.SetModel(xs))
-	must.PanicIf(comboboxMeasurements.SetCurrentIndex(n))
-	handleComboboxMeasurements = true
-
 }
 
 func deleteCurrentMeasurement() {
@@ -410,10 +396,11 @@ func runWork(work func(ctx context.Context) error) {
 	must.PanicIf(labelControlSheet.SetText(""))
 
 	setupWidgets := func(run bool) {
-		must.PanicIf(menuStop.SetVisible(run))
 		must.PanicIf(menuRunMeasure.SetVisible(!run))
-		must.PanicIf(menuRunInterrogate.SetVisible(!run))
-		//must.PanicIf(menuJournal.SetVisible(!run))
+		must.PanicIf(menuStop.SetVisible(run))
+		for i := 0; i < menuControl.Actions().Len(); i++ {
+			must.PanicIf(menuControl.Actions().At(i).SetVisible(!run))
+		}
 	}
 
 	setupWidgets(true)
@@ -471,10 +458,25 @@ func setMeasurement(m data.Measurement) {
 	})
 }
 
+func startMeasure() {
+	m, ok := runDialogMeasurement()
+	if !ok {
+		return
+	}
+	must.PanicIf(data.SaveMeasurement(db, &m))
+	xs := comboboxMeasurements.Model().([]string)
+	xs = append([]string{formatMeasureInfo(m.MeasurementInfo)}, xs...)
+	handleComboboxMeasurements = false
+	must.PanicIf(comboboxMeasurements.SetModel(xs))
+	handleComboboxMeasurements = true
+	setMeasurement(m)
+	runMeasure(m)
+}
+
 var (
 	menuStop,
-	menuRunMeasure,
-	menuRunInterrogate *walk.Action
+	menuRunMeasure *walk.Action
+	menuControl      *walk.Menu
 	tableViewMeasure *walk.TableView
 	labelCalcErr     *walk.LineEdit
 

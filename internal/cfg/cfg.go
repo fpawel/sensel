@@ -22,6 +22,8 @@ type Config struct {
 	Debug              struct {
 		LogComm bool `yaml:"log_comm"`
 	} `yaml:"debug"`
+
+	Table TableConfig `yaml:"table"`
 }
 
 type Gas struct {
@@ -45,6 +47,12 @@ type Comm struct {
 	TimeoutGetResponse time.Duration `yaml:"timeout_get_response"`
 	TimeoutEndResponse time.Duration `yaml:"timeout_end_response"`
 	MaxAttemptsRead    int           `yaml:"max_attempts_read"`
+}
+
+type TableConfig struct {
+	RowHeightMM      float64 `yaml:"row_height_mm"`
+	CellHorizSpaceMM float64 `yaml:"cell_horiz_space_mm"`
+	FontSizePixels   float64 `yaml:"font_size_pixels"`
 }
 
 func (x Config) CommControl() comm.T {
@@ -149,6 +157,11 @@ func init() {
 					MaxAttemptsRead:    3,
 				},
 				KI: 0.000082,
+			},
+			Table: TableConfig{
+				RowHeightMM:      2.75,
+				CellHorizSpaceMM: 1.,
+				FontSizePixels:   5.5,
 			},
 		}
 

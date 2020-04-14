@@ -171,9 +171,9 @@ func runReadSample() {
 }
 
 func readBar(log comm.Logger, ctx context.Context, smp *data.Sample) error {
-	if err := readBreak(log, ctx, smp); err != nil {
-		return err
-	}
+	//if err := readBreak(log, ctx, smp); err != nil {
+	//	return err
+	//}
 	if err := readVoltmeter(log, ctx, smp); err != nil {
 		return err
 	}

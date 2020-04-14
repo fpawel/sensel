@@ -14,20 +14,29 @@ import (
 	"strconv"
 )
 
-func New(m data.Measurement, cs []calc.Column) error {
+func New(m data.Measurement, cs []calc.Column, cfg TableConfig) error {
 	dir, err := prepareDir()
 	if err != nil {
 		return err
 	}
-	d := gofpdf.New("L", "mm", "A5", fontDir)
-	doDoc(d, m, cs)
+
+	d := newDoc(m, cs, cfg)
 	if err := saveAndShowDoc(d, dir, fmt.Sprintf("measure_%d", m.MeasurementID)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func doDoc(d *gofpdf.Fpdf, m data.Measurement, cs []calc.Column) {
+func newDoc(m data.Measurement, cs []calc.Column, tableConfig TableConfig) *gofpdf.Fpdf {
+	//d := gofpdf.New("L", "mm", "A5", fontDir)
+	d := gofpdf.NewCustom(&gofpdf.InitType{
+		OrientationStr: "L",
+		UnitStr:        "mm",
+		SizeStr:        "A5",
+		Size:           gofpdf.SizeType{Wd: 210, Ht: 150},
+		FontDirStr:     fontDir,
+	})
+
 	d.AddFont("RobotoCondensed", "", "RobotoCondensed-Regular.json")
 	d.AddFont("RobotoCondensed", "B", "RobotoCondensed-Bold.json")
 	d.AddFont("RobotoCondensed", "I", "RobotoCondensed-Italic.json")
@@ -40,25 +49,14 @@ func doDoc(d *gofpdf.Fpdf, m data.Measurement, cs []calc.Column) {
 	d.SetDrawColor(169, 169, 169)
 
 	const (
-		colWidth1     = 12.
-		rowHeight     = 4.
-		horizMargin   = 5.
-		tableFontSize = 8
+		horizMargin = 3.
+		topMargin   = 2.
 	)
 
-	cellFormatGreyBackground := func(w, h float64, txtStr, borderStr string, ln int, alignStr string) {
-		d.SetFillColor(230, 230, 230)
-		d.CellFormat(w, h, txtStr, borderStr, ln, alignStr, true, 0, "")
-		d.SetFillColor(255, 255, 255)
-	}
-
-	d.SetMargins(horizMargin, horizMargin, horizMargin)
-
-	tr := d.UnicodeTranslatorFromDescriptor("cp1251")
-	d.AddPageFormat("L", gofpdf.SizeType{1, 1})
+	d.SetMargins(horizMargin, topMargin, horizMargin)
+	d.AddPage()
 
 	pageWidth, _ := d.GetPageSize()
-	tableWidth := pageWidth - 2.*horizMargin
 
 	setFont := func(styleStr string, size float64) {
 		d.SetFont("RobotoCondensed", styleStr, size)
@@ -66,44 +64,164 @@ func doDoc(d *gofpdf.Fpdf, m data.Measurement, cs []calc.Column) {
 
 	d.SetX(horizMargin)
 
-	setFont("B", 9)
+	setFont("B", 7)
 
-	d.CellFormat(tableWidth, 6, tr(fmt.Sprintf(
+	tr := d.UnicodeTranslatorFromDescriptor("cp1251")
+	d.CellFormat(pageWidth-2.*horizMargin, 4, tr(fmt.Sprintf(
 		"ЧЭ %s %s. Обмер № %d. Дата %s", m.Device, m.Kind, m.MeasurementID,
 		m.CreatedAt.Format("02.01.06"))),
-		"", 1, "L", false, 0, "")
-	setFont("", tableFontSize)
+		"", 1, "C", false, 0, "")
+	setFont("", tableConfig.FontSizePixels)
+	tbl := newTable(m, cs)
+	tbl.render(d, tableConfig)
+	return d
+}
 
-	d.CellFormat(colWidth1, rowHeight, tr("Датчик"), "LRTB", 0, "C", false, 0, "")
-
-	colWidth := (pageWidth - colWidth1 - 2.*horizMargin) / float64(len(cs))
+func newTable(m data.Measurement, cs []calc.Column) (t table) {
+	row := []tableCell{
+		{
+			text:   "Датчик",
+			border: "LRTB",
+			align:  "C",
+		},
+	}
+	for n := range m.Samples {
+		row = append(row, tableCell{
+			text:   fmt.Sprintf("U%d", n+1),
+			border: "LRTB",
+			align:  "C",
+		})
+	}
 
 	for _, c := range cs {
-		d.CellFormat(colWidth, rowHeight, tr(c.Name), "LRTB", 0, "C", false, 0, "")
+		row = append(row, tableCell{
+			text:   c.Name,
+			border: "LRTB",
+			align:  "C",
+		})
 	}
-	d.Ln(-1)
+	t = append(t, row)
 
 	for i := 0; i < 16; i++ {
 
-		s := fmt.Sprintf("%d", i+1)
-
-		if m.Br(i) {
-			cellFormatGreyBackground(colWidth1, rowHeight, s, "LRTB", 0, "C")
-		} else {
-			d.CellFormat(colWidth1, rowHeight, s, "LRTB", 0, "C", false, 0, "")
+		row = []tableCell{
+			{
+				err:    m.Br(i),
+				text:   fmt.Sprintf("%d", i+1),
+				border: "LRTB",
+				align:  "C",
+			},
+		}
+		for _, smp := range m.Samples {
+			row = append(row, tableCell{
+				err:    smp.Br[i],
+				text:   strconv.FormatFloat(smp.U[i], 'f', 3, 64),
+				border: "LRTB",
+				align:  "R",
+			})
 		}
 
 		for _, c := range cs {
-			s := strconv.FormatFloat(c.Values[i].Value, 'f', c.Precision, 64)
-			if c.IsErr(i) {
-				cellFormatGreyBackground(colWidth, rowHeight, s, "LRTB", 0, "R")
-			} else {
-				d.CellFormat(colWidth, rowHeight, s, "LRTB", 0, "R", false, 0, "")
-			}
+			row = append(row, tableCell{
+				err:    c.IsErr(i),
+				text:   strconv.FormatFloat(c.Values[i].Value, 'f', c.Precision, 64),
+				border: "LRTB",
+				align:  "R",
+			})
 		}
-		d.Ln(-1)
+
+		t = append(t, row)
 	}
+
+	newMeasureRow := func(title string, f func(smp data.Sample) (float64, int)) {
+		row := []tableCell{
+			{
+				border: "LRTB",
+				text:   title,
+				align:  "C",
+			},
+		}
+
+		for _, smp := range m.Samples {
+			v, prec := f(smp)
+			row = append(row, tableCell{
+				text:   strconv.FormatFloat(v, 'f', prec, 64),
+				border: "LRTB",
+				align:  "R",
+			})
+		}
+
+		for range cs {
+			row = append(row, tableCell{})
+		}
+
+		t = append(t, row)
+	}
+
+	newMeasureRow("U,мВ", func(smp data.Sample) (float64, int) {
+		return smp.Ub, 2
+	})
+	newMeasureRow("I,мA", func(smp data.Sample) (float64, int) {
+		return smp.I, 3
+	})
+	newMeasureRow("Т\"C", func(smp data.Sample) (float64, int) {
+		return smp.T, 1
+	})
+	newMeasureRow("Q", func(smp data.Sample) (float64, int) {
+		return smp.Q, 3
+	})
+	newMeasureRow("Газ", func(smp data.Sample) (float64, int) {
+		return float64(smp.Gas + 1), 0
+	})
+	newMeasureRow("ПГС", func(smp data.Sample) (float64, int) {
+		return m.Pgs[smp.Gas], 2
+	})
+	return
 }
+
+//func newTableMeasure(m data.Measurement) (t table) {
+//	row := []tableCell{
+//		{
+//			ok:     true,
+//			text:   "Датчик",
+//			border: "LRTB",
+//			align:  "C",
+//		},
+//	}
+//	for n := range m.Samples{
+//		row = append(row, tableCell{
+//			ok:     true,
+//			text:   fmt.Sprintf("%d", n+1),
+//			border: "LRTB",
+//			align:  "C",
+//		})
+//	}
+//
+//	t = append(t, row)
+//
+//	for i := 0; i < 16; i++ {
+//
+//		row = []tableCell{
+//			{
+//				ok:     !m.Br(i),
+//				text:   fmt.Sprintf("%d", i+1),
+//				border: "LRTB",
+//				align:  "C",
+//			},
+//		}
+//		for _,smp := range m.Samples{
+//			row = append(row, tableCell{
+//				ok:     !smp.Br[i],
+//				text:   strconv.FormatFloat(smp.U[i], 'f', 3, 64),
+//				border: "LRTB",
+//				align:  "R",
+//			})
+//		}
+//
+//		t = append(t, row)
+//	}
+//	return
+//}
 
 func prepareDir() (string, error) {
 
