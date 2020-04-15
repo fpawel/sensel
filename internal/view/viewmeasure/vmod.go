@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/data"
+	"github.com/fpawel/sensel/internal/pkg"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
 	"github.com/lxn/walk/declarative"
 	"math"
-	"strconv"
 )
 
 var _ walk.TableModel = new(TableViewModel)
@@ -63,13 +63,13 @@ func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 
 	for i := 0; i < 16; i++ {
 		addRow(fmt.Sprintf("%d", i+1), func(s smp) interface{} {
-			return strconv.FormatFloat(s.U[i], 'g', -1, 64)
+			return pkg.FormatFloat(s.U[i], 3)
 		}, func(c calc.Column) interface{} {
 			value := c.Values[i].Value
 			if math.IsNaN(value) {
 				return ""
 			}
-			return strconv.FormatFloat(value, 'f', c.Precision, 64)
+			return pkg.FormatFloat(value, c.Precision)
 		})
 	}
 	addRowNoCalc("", func(s smp) interface{} {
@@ -80,13 +80,13 @@ func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 		return s.Gas
 	})
 	addRowNoCalc("Q,мл/мин", func(s smp) interface{} {
-		return s.Q
+		return pkg.FormatFloat(s.Q, 2)
 	})
 	addRowNoCalc("I,мА", func(s smp) interface{} {
-		return s.I * 1000.
+		return pkg.FormatFloat(s.I*1000., 3)
 	})
 	addRowNoCalc("U,В", func(s smp) interface{} {
-		return s.Ub
+		return pkg.FormatFloat(s.Ub, 2)
 	})
 	addRowNoCalc("Т⁰C", func(s smp) interface{} {
 		return s.T

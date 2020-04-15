@@ -204,8 +204,11 @@ func runDialogMeasurement() (data.Measurement, bool) {
 func runAppSettingsDialog() {
 	c := cfg.Get()
 	var (
-		edFontSizePixels, edCellHorizSpaceMM, edRowHeightMM *walk.NumberEdit
-		dlg                                                 *walk.Dialog
+		edFontSizePixels,
+		edCellHorizSpaceMM,
+		edRowHeightMM *walk.NumberEdit
+		cbIncSamps *walk.CheckBox
+		dlg        *walk.Dialog
 	)
 
 	r, err := Dialog{
@@ -250,6 +253,14 @@ func runAppSettingsDialog() {
 				Decimals: 2,
 			},
 
+			CheckBox{
+				Text:     "Включить в отчёт измеренные напряжения",
+				AssignTo: &cbIncSamps,
+				Checked:  c.Table.IncludeSamples,
+				OnCheckedChanged: func() {
+					c.Table.IncludeSamples = cbIncSamps.Checked()
+				},
+			},
 			PushButton{
 				Text: "Применить",
 				OnClicked: func() {
@@ -338,4 +349,75 @@ func runCurrentMeasurementNameDialog() {
 	must.PanicIf(comboboxMeasurements.SetCurrentIndex(n))
 	handleComboboxMeasurements = true
 
+}
+
+func runDialogConnectPlace() (placeConnection placeConnection, place int, ok bool) {
+	var (
+		dialog         *walk.Dialog
+		nePlace        *walk.NumberEdit
+		pbOk, pbCancel *walk.PushButton
+		rbConnect,
+		rbDisconnect *walk.RadioButton
+	)
+	place = 1
+
+	setConnect := func() {
+		if rbConnect.Checked() {
+			placeConnection = connect
+		} else {
+			placeConnection = disconnect
+		}
+	}
+
+	dlg := Dialog{
+		AssignTo: &dialog,
+		Font: Font{
+			Family:    "Segoe UI",
+			PointSize: 12,
+		},
+		Title:  "Установка реле",
+		Layout: VBox{},
+		Children: []Widget{
+			RadioButton{
+				Text:      "Соединить",
+				AssignTo:  &rbConnect,
+				OnClicked: setConnect,
+			},
+			RadioButton{
+				Text:      "Разомкнуть",
+				AssignTo:  &rbDisconnect,
+				OnClicked: setConnect,
+			},
+			Label{Text: "Место"},
+			NumberEdit{
+				Decimals: 0,
+				AssignTo: &nePlace,
+				Value:    float64(place),
+				MinValue: 0,
+				MaxValue: 16,
+				OnValueChanged: func() {
+					place = int(nePlace.Value())
+				},
+			},
+			PushButton{
+				AssignTo: &pbOk,
+				Text:     "Ок",
+				OnClicked: func() {
+					dialog.Accept()
+				},
+			},
+			PushButton{
+				AssignTo: &pbCancel,
+				Text:     "Отмена",
+				OnClicked: func() {
+					dialog.Cancel()
+				},
+			},
+		},
+	}
+	must.PanicIf(dlg.Create(appWindow))
+	rbConnect.SetChecked(true)
+	rbDisconnect.SetChecked(false)
+	ok = dialog.Run() == walk.DlgCmdOK
+	return
 }

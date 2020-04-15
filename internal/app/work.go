@@ -170,6 +170,26 @@ func runReadSample() {
 	})
 }
 
+func runSearchBreak() {
+	runWork(func(ctx context.Context) error {
+		for {
+			var smp data.Sample
+			err := readBreak(log, ctx, &smp)
+			if err != nil {
+				return err
+			}
+			appWindow.Synchronize(func() {
+				labelCalcErr.SetVisible(false)
+				getMeasureTableViewModel().SetViewData(data.Measurement{
+					MeasurementData: data.MeasurementData{
+						Samples: []data.Sample{smp},
+					},
+				}, nil)
+			})
+		}
+	})
+}
+
 func readBar(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 	//if err := readBreak(log, ctx, smp); err != nil {
 	//	return err

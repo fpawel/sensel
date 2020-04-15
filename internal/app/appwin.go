@@ -20,12 +20,6 @@ import (
 
 func newApplicationWindow() MainWindow {
 
-	updCfg := func(f func(c *cfg.Config)) {
-		c := cfg.Get()
-		f(&c)
-		must.PanicIf(cfg.Set(c))
-	}
-
 	bgWhite := SolidColorBrush{Color: walk.RGB(255, 255, 255)}
 
 	const widthStatusLabelCaption = 140
@@ -65,7 +59,8 @@ func newApplicationWindow() MainWindow {
 						OnTriggered: runReadSample,
 					},
 					Action{
-						Text: "Поиск обрыва",
+						Text:        "Поиск обрыва",
+						OnTriggered: runSearchBreak,
 					},
 					Action{
 						Text: "Установить напряжение",
@@ -102,13 +97,12 @@ func newApplicationWindow() MainWindow {
 					Action{
 						Text: "Включить место",
 						OnTriggered: func() {
-							value, ok := runDialogFloat1(0, "Включить место",
-								"Введите номер места", 0, 0, 16)
+							placeConnect, place, ok := runDialogConnectPlace()
 							if !ok {
 								return
 							}
 							runWork(func(ctx context.Context) error {
-								if err := setupPlaceConnection(log, ctx, int(value)); err != nil {
+								if err := setupPlaceConnection(log, ctx, placeConnect, place); err != nil {
 									return err
 								}
 								return nil
@@ -200,13 +194,7 @@ func newApplicationWindow() MainWindow {
 								TextColor:     walk.RGB(0, 0, 128),
 								MinSize:       Size{Width: widthStatusLabelCaption},
 							},
-							comboBoxComport(func() string {
-								return cfg.Get().ControlSheet.Comport
-							}, func(s string) {
-								updCfg(func(c *cfg.Config) {
-									c.ControlSheet.Comport = s
-								})
-							}),
+							cbComports[nCbControlSheet].Combobox(),
 							LineEdit{
 								ReadOnly:   true,
 								Background: bgWhite,
@@ -225,13 +213,7 @@ func newApplicationWindow() MainWindow {
 								Text:          "Вольтметр",
 								TextColor:     walk.RGB(0, 0, 128),
 							},
-							comboBoxComport(func() string {
-								return cfg.Get().Voltmeter.Comport
-							}, func(s string) {
-								updCfg(func(c *cfg.Config) {
-									c.Voltmeter.Comport = s
-								})
-							}),
+							cbComports[nCbVoltmeter].Combobox(),
 							LineEdit{
 								Background: bgWhite,
 								ReadOnly:   true,
@@ -244,13 +226,7 @@ func newApplicationWindow() MainWindow {
 								TextColor:     walk.RGB(0, 0, 128),
 								MinSize:       Size{Width: widthStatusLabelCaption},
 							},
-							comboBoxComport(func() string {
-								return cfg.Get().Gas.Comport
-							}, func(s string) {
-								updCfg(func(c *cfg.Config) {
-									c.Gas.Comport = s
-								})
-							}),
+							cbComports[nCbGas].Combobox(),
 							LineEdit{
 								Background: bgWhite,
 								ReadOnly:   true,
@@ -359,10 +335,10 @@ func newReport() {
 		}
 		c := cfg.Get().Table
 		if err := pdf.New(m, calcCols, pdf.TableConfig{
-			RowHeightMM:      c.RowHeightMM,
-			CellHorizSpaceMM: c.CellHorizSpaceMM,
-			FontSizePixels:   c.FontSizePixels,
-		}); err != nil {
+			RowHeight:      c.RowHeightMM,
+			CellHorizSpace: c.CellHorizSpaceMM,
+			FontSize:       c.FontSizePixels,
+		}, c.IncludeSamples); err != nil {
 			return err
 		}
 		return nil

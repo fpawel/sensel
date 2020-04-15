@@ -4,6 +4,12 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
+type TableConfig struct {
+	RowHeight      float64
+	CellHorizSpace float64
+	FontSize       float64
+}
+
 type tableCell struct {
 	err bool
 	text,
@@ -13,24 +19,19 @@ type tableCell struct {
 
 type tableCells []tableCell
 
-type table []tableCells
-
-type TableConfig struct {
-	RowHeightMM      float64
-	CellHorizSpaceMM float64
-	FontSizePixels   float64
+type table struct {
+	rows        []tableCells
+	cfg         TableConfig
+	doc         *gofpdf.Fpdf
+	horizOffset float64
 }
 
-func (t table) render(d *gofpdf.Fpdf, cfg TableConfig) {
+func (t table) render() {
 
-	pageWidth, _ := d.GetPageSize()
-
-	colWidths := t.colWidths(d, cfg.CellHorizSpaceMM)
-	tr := d.UnicodeTranslatorFromDescriptor("cp1251")
-	tableWidth := t.width(d, cfg.CellHorizSpaceMM)
-	x0 := (pageWidth - tableWidth) / 2.
-	for _, row := range t {
-		d.SetX(x0)
+	colWidths := t.colWidths()
+	tr := t.doc.UnicodeTranslatorFromDescriptor("cp1251")
+	for _, row := range t.rows {
+		t.doc.SetX(t.horizOffset)
 		for nCol, c := range row {
 			text := tr(c.text)
 			w := colWidths[nCol]
@@ -39,42 +40,42 @@ func (t table) render(d *gofpdf.Fpdf, cfg TableConfig) {
 				ln = 1
 			}
 			if c.err {
-				d.SetFillColor(230, 230, 230)
-				d.CellFormat(w, cfg.RowHeightMM, text, c.border, ln, c.align, true, 0, "")
-				d.SetFillColor(255, 255, 255)
+				t.doc.SetFillColor(230, 230, 230)
+				t.doc.CellFormat(w, t.cfg.RowHeight, text, c.border, ln, c.align, true, 0, "")
+				t.doc.SetFillColor(255, 255, 255)
 				continue
 			}
-			d.CellFormat(w, cfg.RowHeightMM, text, c.border, ln, c.align, false, 0, "")
+			t.doc.CellFormat(w, t.cfg.RowHeight, text, c.border, ln, c.align, false, 0, "")
 		}
 	}
 }
 
-func (t table) width(d *gofpdf.Fpdf, cellHorizSpace float64) (w float64) {
+func (t table) width() (w float64) {
 	for i := 0; i < t.colCount(); i++ {
-		w += t.col(i).width(d, cellHorizSpace)
+		w += t.col(i).width(t.doc, t.cfg.CellHorizSpace)
 	}
 	return
 }
 
-func (t table) colWidths(d *gofpdf.Fpdf, cellHorizSpace float64) (xs []float64) {
+func (t table) colWidths() (xs []float64) {
 	for i := 0; i < t.colCount(); i++ {
-		xs = append(xs, t.col(i).width(d, cellHorizSpace))
+		xs = append(xs, t.col(i).width(t.doc, t.cfg.CellHorizSpace))
 	}
 	return
 }
 
 func (t table) colCount() int {
-	if len(t) == 0 {
+	if len(t.rows) == 0 {
 		return 0
 	}
-	return len(t[0])
+	return len(t.rows[0])
 }
 
 func (t table) col(n int) (xs tableCells) {
 	if n < 0 || n >= t.colCount() {
 		panic("column out of range")
 	}
-	for _, row := range t {
+	for _, row := range t.rows {
 		xs = append(xs, row[n])
 	}
 	return

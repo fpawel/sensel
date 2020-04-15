@@ -53,6 +53,7 @@ type TableConfig struct {
 	RowHeightMM      float64 `yaml:"row_height_mm"`
 	CellHorizSpaceMM float64 `yaml:"cell_horiz_space_mm"`
 	FontSizePixels   float64 `yaml:"font_size_pixels"`
+	IncludeSamples   bool    `yaml:"include_samples"`
 }
 
 func (x Config) CommControl() comm.T {
