@@ -97,12 +97,12 @@ func newApplicationWindow() MainWindow {
 					Action{
 						Text: "Включить место",
 						OnTriggered: func() {
-							placeConnect, place, ok := runDialogConnectPlace()
+							placeConnect, ok := runDialogConnectPlace()
 							if !ok {
 								return
 							}
 							runWork(func(ctx context.Context) error {
-								if err := setupPlaceConnection(log, ctx, placeConnect, place); err != nil {
+								if err := setupPlaceConnection(log, ctx, placeConnect); err != nil {
 									return err
 								}
 								return nil

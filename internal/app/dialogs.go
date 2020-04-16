@@ -1,11 +1,13 @@
 package app
 
 import (
+	"fmt"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
+	"strconv"
 	"time"
 )
 
@@ -351,23 +353,13 @@ func runCurrentMeasurementNameDialog() {
 
 }
 
-func runDialogConnectPlace() (placeConnection placeConnection, place int, ok bool) {
+func runDialogConnectPlace() (placeConnection uint16, ok bool) {
 	var (
 		dialog         *walk.Dialog
-		nePlace        *walk.NumberEdit
+		nePlace        *walk.LineEdit
 		pbOk, pbCancel *walk.PushButton
-		rbConnect,
-		rbDisconnect *walk.RadioButton
 	)
-	place = 1
-
-	setConnect := func() {
-		if rbConnect.Checked() {
-			placeConnection = connect
-		} else {
-			placeConnection = disconnect
-		}
-	}
+	placeConnection = 0xFFFF
 
 	dlg := Dialog{
 		AssignTo: &dialog,
@@ -378,25 +370,15 @@ func runDialogConnectPlace() (placeConnection placeConnection, place int, ok boo
 		Title:  "Установка реле",
 		Layout: VBox{},
 		Children: []Widget{
-			RadioButton{
-				Text:      "Соединить",
-				AssignTo:  &rbConnect,
-				OnClicked: setConnect,
-			},
-			RadioButton{
-				Text:      "Разомкнуть",
-				AssignTo:  &rbDisconnect,
-				OnClicked: setConnect,
-			},
-			Label{Text: "Место"},
-			NumberEdit{
-				Decimals: 0,
+			LineEdit{
 				AssignTo: &nePlace,
-				Value:    float64(place),
-				MinValue: 0,
-				MaxValue: 16,
-				OnValueChanged: func() {
-					place = int(nePlace.Value())
+				Text:     fmt.Sprintf("%016b", placeConnection),
+				OnTextChanged: func() {
+					v, err := strconv.ParseInt(nePlace.Text(), 2, 17)
+					pbOk.SetEnabled(err == nil)
+					if err == nil {
+						placeConnection = uint16(v)
+					}
 				},
 			},
 			PushButton{
@@ -416,8 +398,6 @@ func runDialogConnectPlace() (placeConnection placeConnection, place int, ok boo
 		},
 	}
 	must.PanicIf(dlg.Create(appWindow))
-	rbConnect.SetChecked(true)
-	rbDisconnect.SetChecked(false)
 	ok = dialog.Run() == walk.DlgCmdOK
 	return
 }

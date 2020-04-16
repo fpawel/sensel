@@ -172,21 +172,24 @@ func runReadSample() {
 
 func runSearchBreak() {
 	runWork(func(ctx context.Context) error {
-		for {
-			var smp data.Sample
-			err := readBreak(log, ctx, &smp)
-			if err != nil {
-				return err
-			}
-			appWindow.Synchronize(func() {
-				labelCalcErr.SetVisible(false)
-				getMeasureTableViewModel().SetViewData(data.Measurement{
-					MeasurementData: data.MeasurementData{
-						Samples: []data.Sample{smp},
-					},
-				}, nil)
-			})
+		// установить напряжение питания 10 В
+		if err := setupTensionBar(log, ctx, 10); err != nil {
+			return err
 		}
+		var smp data.Sample
+		err := readBreak(log, ctx, &smp)
+		if err != nil {
+			return err
+		}
+		appWindow.Synchronize(func() {
+			labelCalcErr.SetVisible(false)
+			getMeasureTableViewModel().SetViewData(data.Measurement{
+				MeasurementData: data.MeasurementData{
+					Samples: []data.Sample{smp},
+				},
+			}, nil)
+		})
+		return nil
 	})
 }
 

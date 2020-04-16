@@ -4,8 +4,7 @@ go 1.13
 
 require (
 	github.com/ansel1/merry v1.5.1
-	github.com/fpawel/atool v0.0.0-20200220134135-ee754291ffb5
-	github.com/fpawel/comm v0.0.0-20200319090813-08b8ad2d4edb
+	github.com/fpawel/comm v0.0.0-20200416081844-217705746d78
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
@@ -23,6 +22,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/yuin/gopher-lua v0.0.0-20191220021717-ab39c6098bdb
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+	gopkg.in/Knetic/govaluate.v3 v3.0.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200121175148-a6ecf24a6d71

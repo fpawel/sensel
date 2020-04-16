@@ -98,36 +98,15 @@ func setupTensionBar(log comm.Logger, ctx context.Context, U float64) error {
 	return nil
 }
 
-type placeConnection int
-
-const (
-	disconnect placeConnection = iota
-	connect
-)
-
-func (x placeConnection) String() string {
-	if x == connect {
-		return "ВКЛ"
-	}
-	return "ВЫКЛ"
-}
-
-func (x placeConnection) byte() byte {
-	if x == connect {
-		return 0
-	}
-	return 1
-}
-
-func setupPlaceConnection(log comm.Logger, ctx context.Context, placeConnection placeConnection, place int) error {
-	setStatusOkSync(labelControlSheet, fmt.Sprintf("установка реле %s %d", placeConnection, place))
+func setupPlaceConnection(log comm.Logger, ctx context.Context, placeConnection uint16) error {
+	setStatusOkSync(labelControlSheet, fmt.Sprintf("установка реле %016b", placeConnection))
 	c := cfg.Get()
 	log = structloge.PrependSuffixKeys(log, "COMPORT", c.ControlSheet.Comport)
 
 	_, err := modbus.Request{
 		Addr:     1,
 		ProtoCmd: 0x10,
-		Data:     []byte{0x00, 0x50, 0x00, 0x01, 0x02, placeConnection.byte(), byte(place)},
+		Data:     []byte{0x00, 0x50, 0x00, 0x01, 0x02, byte(placeConnection >> 8), byte(placeConnection)},
 	}.GetResponse(log, ctx, c.CommControl())
 	if err != nil {
 		setStatusErrSync(labelControlSheet, err)
@@ -179,30 +158,37 @@ func readBreak(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 
 	log = structloge.PrependSuffixKeys(log, "COMPORT", c.ControlSheet.Comport)
 
-	// установить напряжение питания 10 В
-	if err := setupTensionBar(log, ctx, 10); err != nil {
-		return err
-	}
 	for i := 0; i < 16; i++ {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+
 		// закоротить место i, остальные места разомкнуть
-		if err := setupPlaceConnection(log, ctx, connect, i+1); err != nil {
+		if err := setupPlaceConnection(log, ctx, 1<<i); err != nil {
 			return err
 		}
+
 		// измерить напряжение
 		if err := readVoltmeter(log, ctx, smp); err != nil {
 			return err
 		}
+
 		// обрыв, если измеренное напряжение на месте i больше 6
 		smp.Br[i] = math.Abs(smp.U[i]) > 6
 	}
-	// установить рабочее напряжение питания
-	if err := setupTensionBar(log, ctx, smp.Ub); err != nil {
+
+	var placeConnection uint16
+	for i := 0; i < 16; i++ {
+		if !smp.Br[i] {
+			placeConnection |= 1 << i
+		}
+	}
+	if err := setupPlaceConnection(log, ctx, placeConnection); err != nil {
 		return err
 	}
-	setStatusOkSync(labelControlSheet, fmt.Sprintf("поиск обрыва: %v", smp.Br))
+
+	setStatusOkSync(labelControlSheet, fmt.Sprintf("поиск обрыва: %016b", placeConnection))
+
 	return nil
 }
 
