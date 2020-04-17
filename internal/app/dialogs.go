@@ -1,17 +1,132 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
+	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
+	lua "github.com/yuin/gopher-lua"
+	"io/ioutil"
+	luar "layeh.com/gopher-luar"
 	"strconv"
+	"sync"
 	"time"
 )
 
-func runDialogFloat1(value float64, title string, caption string, decimals int, min, max float64) (float64, bool) {
+func executeConsole() {
+
+	L := lua.NewState()
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	L.SetContext(ctx)
+	defer func() {
+		cancel()
+		wg.Wait()
+		comports.CloseAllComports()
+		L.Close()
+	}()
+	L.SetGlobal("go", luar.New(L, &luaConsole{L: L}))
+
+	helpStr := "go:Gas(1)\r\ngo:SetTension(10)\r\ngo:SetCurrent(0.05)\r\ngo:SetConnection(0xFFFF)" +
+		"\r\ngo:SetConnectionB('1111111111111111')\r\n"
+
+	var (
+		edCmd    *walk.TextEdit
+		edStatus *walk.LineEdit
+		edHelp   *walk.TextEdit
+		pb       *walk.PushButton
+		dlg      *walk.Dialog
+	)
+
+	setStatus := func(ok bool, text string) {
+		var color walk.Color
+		if ok {
+			color = walk.RGB(0, 0, 128)
+		} else {
+			color = walk.RGB(255, 0, 0)
+		}
+		text = fmt.Sprintf("%s %s", time.Now().Format("15:04:05"), text)
+		edStatus.SetTextColor(color)
+		must.PanicIf(edStatus.SetText(text))
+	}
+
+	srcByes, _ := ioutil.ReadFile("console.lua")
+
+	Dlg := Dialog{
+		Font: Font{
+			Family:    "Segoe UI",
+			PointSize: 12,
+		},
+		AssignTo: &dlg,
+		Title:    "Консоль",
+		Layout:   VBox{},
+		MinSize:  Size{Width: 700, Height: 400},
+		MaxSize:  Size{Width: 700, Height: 400},
+		Children: []Widget{
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					TextEdit{
+						AssignTo: &edCmd,
+						Text:     string(srcByes),
+					},
+					TextEdit{
+						AssignTo: &edHelp,
+						Text:     helpStr,
+						ReadOnly: true,
+					},
+				},
+			},
+
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					LineEdit{
+						AssignTo:   &edStatus,
+						ReadOnly:   true,
+						TextColor:  walk.RGB(255, 0, 0),
+						Background: SolidColorBrush{Color: walk.RGB(233, 233, 233)},
+					},
+					PushButton{
+						Text:     "Выполнить",
+						AssignTo: &pb,
+						MaxSize:  Size{Width: 90},
+						MinSize:  Size{Width: 90},
+						OnClicked: func() {
+							setStatus(true, "выполняется...")
+							pb.SetEnabled(false)
+							L.SetContext(ctx)
+							go func() {
+								s := edCmd.Text()
+								must.PanicIf(ioutil.WriteFile("console.lua", []byte(s), 0666))
+								err := L.DoString(s)
+								appWindow.Synchronize(func() {
+									if ctx.Err() != nil {
+										return
+									}
+									if err == nil {
+										setStatus(true, "OK")
+									} else {
+										setStatus(false, err.Error())
+									}
+									pb.SetEnabled(true)
+								})
+							}()
+						},
+					},
+				},
+			},
+		},
+	}
+	must.PanicIf(Dlg.Create(appWindow))
+	dlg.Run()
+}
+
+func executeDialogFloat1(value float64, title string, caption string, decimals int, min, max float64) (float64, bool) {
 	var (
 		dialog         *walk.Dialog
 		ne             *walk.NumberEdit

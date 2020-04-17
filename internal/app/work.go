@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/cfg"
@@ -26,6 +28,11 @@ func runMeasure(measurement data.Measurement) {
 			return fmt.Errorf("%s: %s: %w", measurement.Device, measurement.Kind, err)
 		}
 
+		// подключить все места
+		if err := setupPlaceConnection(log, ctx, 0xFFFF); err != nil {
+			return err
+		}
+
 		for nSample, smp := range scheme {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -38,19 +45,33 @@ func runMeasure(measurement data.Measurement) {
 				Gas: smp.Gas,
 				Ub:  smp.Tension,
 			}
-			if err := setupMeasurement(log, ctx, smp); err != nil {
-				return err
+
+			if nSample > 0 {
+				dataSmp.Br = measurement.Samples[nSample-1].Br
 			}
-			if err := readBar(log, ctx, &dataSmp); err != nil {
-				return err
-			}
+
 			measurement.Samples = append(measurement.Samples, dataSmp)
-			setMeasurement(measurement)
+			setMeasurementViewUISafe(measurement)
+
+			// установить рабочее напряжение
+			if err := setupTensionBar(log, ctx, smp.Tension); err != nil {
+				return err
+			}
+
+			if err := setupCurrentBar(log, ctx, smp.Current); err != nil {
+				return err
+			}
+
+			// установить газ
+			if err := switchGas(log, ctx, smp.Gas); err != nil {
+				//return err
+			}
 
 			ctxDelay, _ := context.WithTimeout(ctx, smp.Duration)
-			if err := delay(log, ctxDelay, &measurement, scheme); err != nil {
+			if err := delay(log, ctxDelay, measurement, scheme); err != nil {
 				return err
 			}
+			pause(ctx.Done(), cfg.Get().Voltmeter.PauseScan)
 
 			if err := readAndSaveCurrentSample(log, ctx, &measurement); err != nil {
 				return err
@@ -62,18 +83,18 @@ func runMeasure(measurement data.Measurement) {
 
 func readAndSaveCurrentSample(log comm.Logger, ctx context.Context, m *data.Measurement) error {
 	dataSmp := &m.Samples[len(m.Samples)-1]
-	err := readBar(log, ctx, dataSmp)
+	err := readSample(log, ctx, dataSmp)
 	if err != nil {
 		return err
 	}
 	if err := data.SaveMeasurement(db, m); err != nil {
 		return err
 	}
-	setMeasurement(*m)
+	setMeasurementViewUISafe(*m)
 	return nil
 }
 
-func delay(log comm.Logger, ctx context.Context, m *data.Measurement, scheme []calc.Sample) error {
+func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []calc.Sample) error {
 
 	smpIndex := len(m.Samples) - 1
 
@@ -83,7 +104,6 @@ func delay(log comm.Logger, ctx context.Context, m *data.Measurement, scheme []c
 
 	smp := scheme[smpIndex]
 	tickUpdGui := time.NewTicker(time.Second * 2)
-	tickReadSample := time.NewTicker(cfg.Get().ReadSampleInterval)
 	startTime := time.Now()
 
 	upd := func() {
@@ -126,46 +146,59 @@ func delay(log comm.Logger, ctx context.Context, m *data.Measurement, scheme []c
 			return nil
 		case <-tickUpdGui.C:
 			appWindow.Synchronize(upd)
-		case <-tickReadSample.C:
-			if err := readAndSaveCurrentSample(log, ctx, m); err != nil {
+		default:
+			err := readSample(log, ctx, &m.Samples[smpIndex])
+			if err != nil {
+				if merry.Is(err, context.DeadlineExceeded) {
+					return nil
+				}
 				return err
 			}
+			setMeasurementViewUISafe(m)
 		}
 	}
 }
 
-func setupMeasurement(log comm.Logger, ctx context.Context, sampleScheme calc.Sample) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
+func readSample(log comm.Logger, ctx context.Context, smp *data.Sample) error {
+	if smp.BreakAll() {
+		return errors.New("все элементы в планке оборваны")
 	}
-	if err := setupCurrentBar(log, ctx, sampleScheme.Current); err != nil {
+	if err := readVoltmeter(log, ctx, smp); err != nil {
 		return err
 	}
-	if err := setupTensionBar(log, ctx, sampleScheme.Tension); err != nil {
+
+	// нет обрыва
+	if smp.I > 0.006 {
+		return nil
+	}
+
+	// установить напряжение 10В
+	if err := setupTensionBar(log, ctx, 10); err != nil {
 		return err
 	}
-	if err := switchGas(log, ctx, sampleScheme.Gas); err != nil {
-		//return err
+
+	// найти обрыв
+	if err := readBreak(log, ctx, smp); err != nil {
+		return err
 	}
+
+	// установить рабочее напряжение
+	if err := setupTensionBar(log, ctx, smp.Ub); err != nil {
+		return err
+	}
+	smp.Tm = time.Now()
 	return nil
 }
 
-func runReadSample() {
+func runReadVoltmeter() {
 	runWork(func(ctx context.Context) error {
 		for {
 			var smp data.Sample
-			err := readBar(log, ctx, &smp)
+			err := readVoltmeter(log, ctx, &smp)
 			if err != nil {
 				return err
 			}
-			appWindow.Synchronize(func() {
-				labelCalcErr.SetVisible(false)
-				getMeasureTableViewModel().SetViewData(data.Measurement{
-					MeasurementData: data.MeasurementData{
-						Samples: []data.Sample{smp},
-					},
-				}, nil)
-			})
+			setSampleViewUISafe(smp)
 		}
 	})
 }
@@ -181,27 +214,9 @@ func runSearchBreak() {
 		if err != nil {
 			return err
 		}
-		appWindow.Synchronize(func() {
-			labelCalcErr.SetVisible(false)
-			getMeasureTableViewModel().SetViewData(data.Measurement{
-				MeasurementData: data.MeasurementData{
-					Samples: []data.Sample{smp},
-				},
-			}, nil)
-		})
+		setSampleViewUISafe(smp)
 		return nil
 	})
-}
-
-func readBar(log comm.Logger, ctx context.Context, smp *data.Sample) error {
-	//if err := readBreak(log, ctx, smp); err != nil {
-	//	return err
-	//}
-	if err := readVoltmeter(log, ctx, smp); err != nil {
-		return err
-	}
-	smp.Tm = time.Now()
-	return nil
 }
 
 func errNeedBytesCount(what string, n, len int) error {

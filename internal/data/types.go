@@ -33,6 +33,15 @@ type Sample struct {
 	Br  [16]bool
 }
 
+func (smp Sample) BreakAll() bool {
+	for _, br := range smp.Br {
+		if !br {
+			return false
+		}
+	}
+	return true
+}
+
 func (m Measurement) I() (xs []float64) {
 	for _, smp := range m.Samples {
 		xs = append(xs, smp.I)

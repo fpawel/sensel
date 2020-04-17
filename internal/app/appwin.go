@@ -55,8 +55,13 @@ func newApplicationWindow() MainWindow {
 				Text:     "Управление",
 				Items: []MenuItem{
 					Action{
+						Text:        "Консоль",
+						OnTriggered: executeConsole,
+					},
+
+					Action{
 						Text:        "Опрос вольтметра",
-						OnTriggered: runReadSample,
+						OnTriggered: runReadVoltmeter,
 					},
 					Action{
 						Text:        "Поиск обрыва",
@@ -65,7 +70,7 @@ func newApplicationWindow() MainWindow {
 					Action{
 						Text: "Установить напряжение",
 						OnTriggered: func() {
-							value, ok := runDialogFloat1(10, "Установить напряжение",
+							value, ok := executeDialogFloat1(10, "Установить напряжение",
 								"Введите значение напряжения", 1, 0, 100)
 							if !ok {
 								return
@@ -81,7 +86,7 @@ func newApplicationWindow() MainWindow {
 					Action{
 						Text: "Установить ток",
 						OnTriggered: func() {
-							value, ok := runDialogFloat1(10, "Установить ток",
+							value, ok := executeDialogFloat1(10, "Установить ток",
 								"Введите значение тока", 1, 0, 1000)
 							if !ok {
 								return
@@ -103,6 +108,21 @@ func newApplicationWindow() MainWindow {
 							}
 							runWork(func(ctx context.Context) error {
 								if err := setupPlaceConnection(log, ctx, placeConnect); err != nil {
+									return err
+								}
+								return nil
+							})
+						},
+					},
+					Action{
+						Text: "Газовый блок",
+						OnTriggered: func() {
+							v, ok := executeDialogFloat1(0, "Газовый блок", "", 0, 0, 10)
+							if !ok {
+								return
+							}
+							runWork(func(ctx context.Context) error {
+								if err := switchGas(log, ctx, int(v)); err != nil {
 									return err
 								}
 								return nil
@@ -145,12 +165,23 @@ func newApplicationWindow() MainWindow {
 								OnCurrentIndexChanged: comboboxMeasurementsCurrentIndexChanged,
 								ContextMenuItems: []MenuItem{
 									Action{
-										Text:        "Ввести коментарий",
+										Text:        "Коментарий...",
 										OnTriggered: runCurrentMeasurementNameDialog,
 									},
 									Action{
 										Text:        "Удалить",
 										OnTriggered: deleteCurrentMeasurement,
+									},
+									Action{
+										AssignTo:    &actionArchiveFilterLast,
+										OnTriggered: executeDialogFilterLastMeasurement,
+									},
+									Action{
+										AssignTo: &actionArchiveFilterData,
+										Text:     "Фильтр: дата...",
+										OnTriggered: func() {
+											setupArchiveFilterData()
+										},
 									},
 								},
 							},
@@ -280,26 +311,60 @@ func newApplicationWindow() MainWindow {
 	}
 }
 
-func setupLastMeasurementView() {
+func executeDialogFilterLastMeasurement() {
+	c := cfg.Get()
+	v, ok := executeDialogFloat1(float64(c.LastMeasurementsCount), "Фильтр", "Количество измерений", 0, 0, 0)
+	if !ok {
+		return
+	}
+	if v < 10 {
+		v = 10
+	}
+	c.LastMeasurementsCount = int(v)
+	must.PanicIf(cfg.Set(c))
+	setupArchiveFilterLastMeasurements(c.LastMeasurementsCount)
+}
+
+func setupArchiveFilterData() {
+	must.PanicIf(actionArchiveFilterLast.SetText("Фильтр: последние измерения"))
+	must.PanicIf(actionArchiveFilterData.SetText("Фильтр: дата"))
+	must.PanicIf(actionArchiveFilterLast.SetChecked(false))
+	must.PanicIf(actionArchiveFilterData.SetChecked(true))
+}
+
+func setupArchiveFilterLastMeasurements(count int) {
+	if count < 10 {
+		count = 10
+	}
+	var arch []data.MeasurementInfo
+	must.PanicIf(data.ListArchive(db, &arch, count))
+	setupArchiveComboBox(arch)
+	must.PanicIf(actionArchiveFilterLast.SetText(fmt.Sprintf("Фильтр: последние %d измерений", count)))
+	must.PanicIf(actionArchiveFilterData.SetText("Фильтр: дата"))
+	must.PanicIf(actionArchiveFilterLast.SetChecked(true))
+	must.PanicIf(actionArchiveFilterData.SetChecked(false))
+}
+
+func setupArchiveComboBox(arch []data.MeasurementInfo) {
 	handleComboboxMeasurements = false
 	defer func() {
 		handleComboboxMeasurements = true
 	}()
-
-	var arch []data.MeasurementInfo
-	must.PanicIf(data.ListArchive(db, &arch))
-
 	var cbm []string
 	for _, x := range arch {
 		cbm = append(cbm, formatMeasureInfo(x))
 	}
 	must.PanicIf(comboboxMeasurements.SetModel(cbm))
-
-	var measurement data.Measurement
-	_ = data.GetLastMeasurement(db, &measurement)
-	viewmeasure.NewMainTableViewModel(tableViewMeasure)
-
-	setMeasurement(measurement)
+	if len(arch) == 0 {
+		setSampleView(data.Sample{})
+		return
+	}
+	must.PanicIf(comboboxMeasurements.SetCurrentIndex(0))
+	m := data.Measurement{
+		MeasurementInfo: arch[0],
+	}
+	must.PanicIf(data.GetMeasurement(db, &m))
+	setMeasurementView(m)
 }
 
 func comboboxMeasurementsCurrentIndexChanged() {
@@ -308,14 +373,14 @@ func comboboxMeasurementsCurrentIndexChanged() {
 	}
 	measurementID, err := getSelectedMeasurementID()
 	if err != nil {
-		setMeasurement(data.Measurement{})
+		setMeasurementView(data.Measurement{})
 		return
 	}
 
 	var m data.Measurement
 	m.MeasurementID = measurementID
 	must.PanicIf(data.GetMeasurement(db, &m))
-	setMeasurement(m)
+	setMeasurementView(m)
 }
 
 func newReport() {
@@ -353,7 +418,7 @@ func deleteCurrentMeasurement() {
 		return
 	}
 	db.MustExec(`DELETE FROM measurement WHERE measurement_id=?`, measurementID)
-	setupLastMeasurementView()
+	setupArchiveFilterLastMeasurements(50)
 }
 
 func getSelectedMeasurementID() (int64, error) {
@@ -409,31 +474,6 @@ func getMeasureTableViewModel() *viewmeasure.TableViewModel {
 	return tableViewMeasure.Model().(*viewmeasure.TableViewModel)
 }
 
-func setMeasurement(m data.Measurement) {
-	appWindow.Synchronize(func() {
-		must.PanicIf(appWindow.SetTitle(fmt.Sprintf("Измерение №%d %s",
-			m.MeasurementID, m.CreatedAt.Format("02.01.06 15:04"))))
-
-		calcCols, err := Calc.CalculateMeasure(m)
-		if err != nil {
-			must.PanicIf(labelCalcErr.SetText("Расчёт: " + err.Error()))
-			labelCalcErr.SetVisible(true)
-		} else {
-			labelCalcErr.SetVisible(false)
-		}
-		getMeasureTableViewModel().SetViewData(m, calcCols)
-
-		for i, x := range comboboxMeasurements.Model().([]string) {
-			if x == formatMeasureInfo(m.MeasurementInfo) {
-				handleComboboxMeasurements = false
-				must.PanicIf(comboboxMeasurements.SetCurrentIndex(i))
-				handleComboboxMeasurements = true
-				break
-			}
-		}
-	})
-}
-
 func startMeasure() {
 	m, ok := runDialogMeasurement()
 	if !ok {
@@ -445,8 +485,75 @@ func startMeasure() {
 	handleComboboxMeasurements = false
 	must.PanicIf(comboboxMeasurements.SetModel(xs))
 	handleComboboxMeasurements = true
-	setMeasurement(m)
+	setMeasurementViewUISafe(m)
 	runMeasure(m)
+}
+
+func setSampleView(smp data.Sample) {
+	m := data.Measurement{
+		MeasurementData: data.MeasurementData{
+			Samples: []data.Sample{smp},
+		},
+	}
+	must.PanicIf(appWindow.SetTitle("УКЧЭ"))
+	getMeasureTableViewModel().SetViewData(m, nil)
+	labelCalcErr.SetVisible(false)
+	handleComboboxMeasurements = false
+	must.PanicIf(comboboxMeasurements.SetCurrentIndex(-1))
+	handleComboboxMeasurements = true
+}
+
+func setSampleViewUISafe(smp data.Sample) {
+	m := data.Measurement{
+		MeasurementData: data.MeasurementData{
+			Samples: []data.Sample{smp},
+		},
+	}
+	appWindow.Synchronize(func() {
+		must.PanicIf(appWindow.SetTitle("УКЧЭ"))
+		getMeasureTableViewModel().SetViewData(m, nil)
+		labelCalcErr.SetVisible(false)
+		handleComboboxMeasurements = false
+		must.PanicIf(comboboxMeasurements.SetCurrentIndex(-1))
+		handleComboboxMeasurements = true
+	})
+}
+
+func setMeasurementViewUISafe(m data.Measurement) {
+	appWindow.Synchronize(func() {
+		setMeasurementView(m)
+	})
+}
+
+func setMeasurementView(m data.Measurement) {
+
+	if m.MeasurementID != 0 {
+		must.PanicIf(appWindow.SetTitle(fmt.Sprintf("УКЧЭ. Измерение №%d %s",
+			m.MeasurementID, m.CreatedAt.Format("02.01.06 15:04"))))
+	} else {
+		must.PanicIf(appWindow.SetTitle("УКЧЭ"))
+	}
+
+	calcCols, err := Calc.CalculateMeasure(m)
+	if err != nil {
+		must.PanicIf(labelCalcErr.SetText("Расчёт: " + err.Error()))
+		labelCalcErr.SetVisible(true)
+	} else {
+		labelCalcErr.SetVisible(false)
+	}
+	getMeasureTableViewModel().SetViewData(m, calcCols)
+
+	for i, x := range comboboxMeasurements.Model().([]string) {
+		if x == formatMeasureInfo(m.MeasurementInfo) {
+			handleComboboxMeasurements = false
+			must.PanicIf(comboboxMeasurements.SetCurrentIndex(i))
+			handleComboboxMeasurements = true
+			return
+		}
+	}
+	handleComboboxMeasurements = false
+	must.PanicIf(comboboxMeasurements.SetCurrentIndex(-1))
+	handleComboboxMeasurements = true
 }
 
 var (
@@ -455,6 +562,9 @@ var (
 	menuControl      *walk.Menu
 	tableViewMeasure *walk.TableView
 	labelCalcErr     *walk.LineEdit
+
+	actionArchiveFilterLast,
+	actionArchiveFilterData *walk.Action
 
 	labelWorkStatus,
 	labelControlSheet,

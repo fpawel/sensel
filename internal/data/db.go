@@ -20,12 +20,12 @@ func Open(filename string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-func ListArchive(db *sqlx.DB, arch *[]MeasurementInfo) error {
+func ListArchive(db *sqlx.DB, arch *[]MeasurementInfo, count int) error {
 	const q = `
-SELECT measurement_id, created_at, device, kind, name FROM measurement
-ORDER BY created_at DESC 
+SELECT measurement_id, created_at, device, kind, name FROM measurement 
+ORDER BY created_at DESC LIMIT ?
 `
-	return db.Select(arch, q)
+	return db.Select(arch, q, count)
 }
 
 func GetLastMeasurement(db *sqlx.DB, m *Measurement) error {

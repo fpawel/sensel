@@ -23,7 +23,8 @@ type Config struct {
 		LogComm bool `yaml:"log_comm"`
 	} `yaml:"debug"`
 
-	Table TableConfig `yaml:"table"`
+	Table                 TableConfig `yaml:"table"`
+	LastMeasurementsCount int         `yaml:"last_measurements_count"`
 }
 
 type Gas struct {
@@ -164,6 +165,7 @@ func init() {
 				CellHorizSpaceMM: 1.,
 				FontSizePixels:   5.5,
 			},
+			LastMeasurementsCount: 50,
 		}
 
 	}

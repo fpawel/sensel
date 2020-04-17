@@ -3,8 +3,10 @@ package app
 import (
 	"context"
 	"github.com/fpawel/sensel/internal/calc"
+	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
+	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/jmoiron/sqlx"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
@@ -42,6 +44,9 @@ func Main() {
 
 	must.PanicIf(newApplicationWindow().Create())
 
+	// связывание TableView с моделью
+	viewmeasure.NewMainTableViewModel(tableViewMeasure)
+
 	// инициализация виджетов
 	labelCurrentDelay.SetVisible(false)
 	labelTotalDelay.SetVisible(false)
@@ -50,7 +55,7 @@ func Main() {
 	go trackRegChangeComport()
 
 	// инициализация модели представления
-	setupLastMeasurementView()
+	setupArchiveFilterLastMeasurements(cfg.Get().LastMeasurementsCount)
 
 	if !win.ShowWindow(appWindow.Handle(), win.SW_SHOWMAXIMIZED) {
 		panic("can`t show window")

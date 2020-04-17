@@ -138,11 +138,11 @@ func (c C) GetProductTypeMeasurementScheme(device, kind string) ([]Sample, error
 func (c C) CalculateMeasure(m data.Measurement) ([]Column, error) {
 	mD, ok := c.d[m.Device]
 	if !ok {
-		return nil, fmt.Errorf("не найден тип прибора: %s %s", m.Device, m.Kind)
+		return nil, fmt.Errorf("не найден тип прибора: %q %q", m.Device, m.Kind)
 	}
 	d, ok := mD[m.Kind]
 	if !ok {
-		return nil, fmt.Errorf("не найден тип прибора: %s %s", m.Device, m.Kind)
+		return nil, fmt.Errorf("не найден тип прибора: %q %q", m.Device, m.Kind)
 	}
 	I := sliceLenNaN(len(d.Samples), m.I())
 	T := sliceLenNaN(len(d.Samples), m.T())
