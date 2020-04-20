@@ -7,12 +7,12 @@ import (
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
+	"github.com/fpawel/sensel/internal/view/viewarch"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 	lua "github.com/yuin/gopher-lua"
 	"io/ioutil"
 	luar "layeh.com/gopher-luar"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -31,8 +31,11 @@ func executeConsole() {
 	}()
 	L.SetGlobal("go", luar.New(L, &luaConsole{L: L}))
 
-	helpStr := "go:Gas(1)\r\ngo:SetTension(10)\r\ngo:SetCurrent(0.05)\r\ngo:SetConnection(0xFFFF)" +
-		"\r\ngo:SetConnectionB('1111111111111111')\r\n"
+	helpStr := "go:Gas(1)\r\n" +
+		"go:SetTension(10)\r\n" +
+		"go:SetCurrent(0.05)\r\n" +
+		"go:SetConnection(0xFFFF)\r\n" +
+		"go:SetConnectionB('1111111111111111')\r\n"
 
 	var (
 		edCmd    *walk.TextEdit
@@ -62,7 +65,7 @@ func executeConsole() {
 			PointSize: 12,
 		},
 		AssignTo: &dlg,
-		Title:    "Консоль",
+		Title:    "Ввод команд",
 		Layout:   VBox{},
 		MinSize:  Size{Width: 700, Height: 400},
 		MaxSize:  Size{Width: 700, Height: 400},
@@ -468,51 +471,47 @@ func runCurrentMeasurementNameDialog() {
 
 }
 
-func runDialogConnectPlace() (placeConnection uint16, ok bool) {
+func runFilterArchiveDialog() (int, time.Month, int, bool) {
 	var (
-		dialog         *walk.Dialog
-		nePlace        *walk.LineEdit
-		pbOk, pbCancel *walk.PushButton
+		dlg       *walk.Dialog
+		tv        *walk.TreeView
+		year, day int
+		month     time.Month
 	)
-	placeConnection = 0xFFFF
+	var arch []data.MeasurementInfo
+	must.PanicIf(data.ListArchive(db, &arch, 0))
 
-	dlg := Dialog{
-		AssignTo: &dialog,
+	var tmArch []time.Time
+	for _, x := range arch {
+		tmArch = append(tmArch, x.CreatedAt)
+	}
+
+	r, err := Dialog{
 		Font: Font{
 			Family:    "Segoe UI",
 			PointSize: 12,
 		},
-		Title:  "Установка реле",
-		Layout: VBox{},
+		MinSize:  Size{280, 180},
+		MaxSize:  Size{280, 180},
+		AssignTo: &dlg,
+		Title:    "Выбрать дату",
+		Layout:   VBox{},
 		Children: []Widget{
-			LineEdit{
-				AssignTo: &nePlace,
-				Text:     fmt.Sprintf("%016b", placeConnection),
-				OnTextChanged: func() {
-					v, err := strconv.ParseInt(nePlace.Text(), 2, 17)
-					pbOk.SetEnabled(err == nil)
-					if err == nil {
-						placeConnection = uint16(v)
+
+			TreeView{
+				Model:    viewarch.NewTreeViewModel(tmArch),
+				AssignTo: &tv,
+				MinSize:  Size{Height: 300},
+				OnItemActivated: func() {
+					var ok bool
+					year, month, day, ok = viewarch.GetItemDate(tv.CurrentItem())
+					if ok {
+						dlg.Accept()
 					}
 				},
 			},
-			PushButton{
-				AssignTo: &pbOk,
-				Text:     "Ок",
-				OnClicked: func() {
-					dialog.Accept()
-				},
-			},
-			PushButton{
-				AssignTo: &pbCancel,
-				Text:     "Отмена",
-				OnClicked: func() {
-					dialog.Cancel()
-				},
-			},
 		},
-	}
-	must.PanicIf(dlg.Create(appWindow))
-	ok = dialog.Run() == walk.DlgCmdOK
-	return
+	}.Run(appWindow)
+	must.PanicIf(err)
+	return year, month, day, r == walk.DlgCmdOK
 }

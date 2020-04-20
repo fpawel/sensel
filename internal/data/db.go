@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
+	"time"
 )
 
 func Open(filename string) (*sqlx.DB, error) {
@@ -21,11 +22,32 @@ func Open(filename string) (*sqlx.DB, error) {
 }
 
 func ListArchive(db *sqlx.DB, arch *[]MeasurementInfo, count int) error {
-	const q = `
+	if count > 0 {
+		const q = `
 SELECT measurement_id, created_at, device, kind, name FROM measurement 
 ORDER BY created_at DESC LIMIT ?
 `
-	return db.Select(arch, q, count)
+		return db.Select(arch, q, count)
+	}
+	const q = `
+SELECT measurement_id, created_at, device, kind, name FROM measurement 
+ORDER BY created_at DESC
+`
+	return db.Select(arch, q)
+
+}
+
+func ListArchiveDay(db *sqlx.DB, arch *[]MeasurementInfo, year int, month time.Month, day int) error {
+	const q = `
+SELECT measurement_id, created_at, device, kind, name FROM measurement
+WHERE cast(strftime('%Y', created_at) AS INTEGER) = ?
+  AND cast(strftime('%m', created_at) AS INTEGER) = ?
+  AND cast(strftime('%d', created_at) AS INTEGER) = ?
+ORDER BY created_at DESC
+`
+
+	return db.Select(arch, q, year, month, day)
+
 }
 
 func GetLastMeasurement(db *sqlx.DB, m *Measurement) error {

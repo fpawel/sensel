@@ -153,7 +153,7 @@ func newTableRows2(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 	return
 }
 
-func newTableMeasureSamples(m data.Measurement) (rows []tableCells) {
+func newTableMeasureSamples(m data.Measurement, side bool) (rows []tableCells) {
 	row := tableCells{
 		{
 			text:   "Замер",
@@ -190,23 +190,27 @@ func newTableMeasureSamples(m data.Measurement) (rows []tableCells) {
 		rows = append(rows, row)
 	}
 
-	newMeasureRow("U,мВ", func(smp data.Sample) (float64, int) {
-		return smp.Ub, 2
-	})
-	newMeasureRow("I,мA", func(smp data.Sample) (float64, int) {
-		return smp.I, 3
-	})
-	newMeasureRow("Т\"C", func(smp data.Sample) (float64, int) {
-		return smp.T, 1
-	})
-	newMeasureRow("Q", func(smp data.Sample) (float64, int) {
-		return smp.Q, 3
-	})
-	newMeasureRow("Газ", func(smp data.Sample) (float64, int) {
-		return float64(smp.Gas + 1), 0
-	})
-	newMeasureRow("ПГС", func(smp data.Sample) (float64, int) {
-		return m.Pgs[smp.Gas], 2
-	})
+	if side {
+		newMeasureRow("U,мВ", func(smp data.Sample) (float64, int) {
+			return smp.Ub, 2
+		})
+		newMeasureRow("I,мA", func(smp data.Sample) (float64, int) {
+			return smp.I, 3
+		})
+		newMeasureRow("Т\"C", func(smp data.Sample) (float64, int) {
+			return smp.T, 1
+		})
+	} else {
+		newMeasureRow("Q", func(smp data.Sample) (float64, int) {
+			return smp.Q, 3
+		})
+		newMeasureRow("Газ", func(smp data.Sample) (float64, int) {
+			return float64(smp.Gas + 1), 0
+		})
+		newMeasureRow("ПГС", func(smp data.Sample) (float64, int) {
+			return m.Pgs[smp.Gas], 2
+		})
+	}
+
 	return
 }

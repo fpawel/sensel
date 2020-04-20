@@ -55,11 +55,6 @@ func newApplicationWindow() MainWindow {
 				Text:     "Управление",
 				Items: []MenuItem{
 					Action{
-						Text:        "Консоль",
-						OnTriggered: executeConsole,
-					},
-
-					Action{
 						Text:        "Опрос вольтметра",
 						OnTriggered: runReadVoltmeter,
 					},
@@ -68,66 +63,8 @@ func newApplicationWindow() MainWindow {
 						OnTriggered: runSearchBreak,
 					},
 					Action{
-						Text: "Установить напряжение",
-						OnTriggered: func() {
-							value, ok := executeDialogFloat1(10, "Установить напряжение",
-								"Введите значение напряжения", 1, 0, 100)
-							if !ok {
-								return
-							}
-							runWork(func(ctx context.Context) error {
-								if err := setupTensionBar(log, ctx, value); err != nil {
-									return err
-								}
-								return nil
-							})
-						},
-					},
-					Action{
-						Text: "Установить ток",
-						OnTriggered: func() {
-							value, ok := executeDialogFloat1(10, "Установить ток",
-								"Введите значение тока", 1, 0, 1000)
-							if !ok {
-								return
-							}
-							runWork(func(ctx context.Context) error {
-								if err := setupCurrentBar(log, ctx, value); err != nil {
-									return err
-								}
-								return nil
-							})
-						},
-					},
-					Action{
-						Text: "Включить место",
-						OnTriggered: func() {
-							placeConnect, ok := runDialogConnectPlace()
-							if !ok {
-								return
-							}
-							runWork(func(ctx context.Context) error {
-								if err := setupPlaceConnection(log, ctx, placeConnect); err != nil {
-									return err
-								}
-								return nil
-							})
-						},
-					},
-					Action{
-						Text: "Газовый блок",
-						OnTriggered: func() {
-							v, ok := executeDialogFloat1(0, "Газовый блок", "", 0, 0, 10)
-							if !ok {
-								return
-							}
-							runWork(func(ctx context.Context) error {
-								if err := switchGas(log, ctx, int(v)); err != nil {
-									return err
-								}
-								return nil
-							})
-						},
+						Text:        "Ввод команд",
+						OnTriggered: executeConsole,
 					},
 				},
 			},
@@ -326,8 +263,15 @@ func executeDialogFilterLastMeasurement() {
 }
 
 func setupArchiveFilterData() {
+	y, m, d, ok := runFilterArchiveDialog()
+	if !ok {
+		return
+	}
+	var arch []data.MeasurementInfo
+	must.PanicIf(data.ListArchiveDay(db, &arch, y, m, d))
+	setupArchiveComboBox(arch)
 	must.PanicIf(actionArchiveFilterLast.SetText("Фильтр: последние измерения"))
-	must.PanicIf(actionArchiveFilterData.SetText("Фильтр: дата"))
+	must.PanicIf(actionArchiveFilterData.SetText(fmt.Sprintf("Фильтр: %02d.%02d.%d", d, m, y)))
 	must.PanicIf(actionArchiveFilterLast.SetChecked(false))
 	must.PanicIf(actionArchiveFilterData.SetChecked(true))
 }

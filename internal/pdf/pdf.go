@@ -85,8 +85,16 @@ func newDoc(m data.Measurement, cs []calc.Column, tableConfig TableConfig, inclu
 		tbl.horizOffset = (pageWidth - tbl.width()) / 2.
 		tbl.render()
 
-		tbl.rows = newTableMeasureSamples(m)
-		doc.SetY(doc.GetY() + 1.)
+		y := doc.GetY()
+
+		tbl.rows = newTableMeasureSamples(m, true)
+		doc.SetY(y + 1.)
+		tbl.render()
+
+		tbl.horizOffset += tbl.width() + 1
+
+		doc.SetY(y + 1.)
+		tbl.rows = newTableMeasureSamples(m, false)
 		tbl.render()
 	}
 	return doc
