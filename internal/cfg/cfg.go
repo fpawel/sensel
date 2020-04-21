@@ -40,6 +40,8 @@ type Voltmeter struct {
 type Control struct {
 	Comm `yaml:"comm"`
 	KI   float64 `yaml:"Ki"`
+	Kt0  float64 `yaml:"Kt0"`
+	Kt1  float64 `yaml:"Kt1"`
 }
 
 type Comm struct {
@@ -158,7 +160,9 @@ func init() {
 					TimeoutEndResponse: 50 * time.Millisecond,
 					MaxAttemptsRead:    3,
 				},
-				KI: 0.000082,
+				KI:  0.000082,
+				Kt0: -64.305,
+				Kt1: 8.969,
 			},
 			Table: TableConfig{
 				RowHeightMM:      2.75,
