@@ -6,13 +6,10 @@ require (
 	github.com/ansel1/merry v1.5.1
 	github.com/fpawel/comm v0.0.0-20200416081844-217705746d78
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/gomarkdown/markdown v0.0.0-20200316172748-fd1f3374857d // indirect
-	github.com/gomarkdown/mdtohtml v0.0.0-20180202094705-7346712f31b4 // indirect
 	github.com/google/go-cmp v0.4.0
 	github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00 // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/jung-kurt/gofpdf v1.16.2
-	github.com/kr/pretty v0.2.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.3.0 // indirect
 	github.com/lxn/walk v0.0.0-20191128110447-55ccb3a9f5c1
