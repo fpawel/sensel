@@ -18,7 +18,6 @@ import (
 )
 
 func executeConsole() {
-
 	L := lua.NewState()
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
@@ -514,4 +513,54 @@ func runFilterArchiveDialog() (int, time.Month, int, bool) {
 	}.Run(appWindow)
 	must.PanicIf(err)
 	return year, month, day, r == walk.DlgCmdOK
+}
+
+func errorDialog(errStr string) {
+	var (
+		dlg *walk.Dialog
+		pb  *walk.PushButton
+	)
+
+	Dlg := Dialog{
+		Font: Font{
+			Family:    "Segoe UI",
+			PointSize: 12,
+		},
+		AssignTo: &dlg,
+		Title:    "Произошла ошибка",
+		Layout:   HBox{},
+		MinSize:  Size{Width: 600, Height: 300},
+		MaxSize:  Size{Width: 600, Height: 300},
+
+		CancelButton:  &pb,
+		DefaultButton: &pb,
+
+		Children: []Widget{
+
+			TextEdit{
+				TextColor: walk.RGB(255, 0, 0),
+				ReadOnly:  true,
+				Text:      errStr,
+			},
+			ScrollView{
+				Layout:          VBox{},
+				HorizontalFixed: true,
+				Children: []Widget{
+					PushButton{
+						AssignTo: &pb,
+						Text:     "Продолжить",
+						OnClicked: func() {
+							dlg.Accept()
+						},
+					},
+					ImageView{
+						Image: "assets/img/error_80.png",
+					},
+				},
+			},
+		},
+	}
+	must.PanicIf(Dlg.Create(appWindow))
+	must.PanicIf(pb.SetFocus())
+	dlg.Run()
 }

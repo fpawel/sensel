@@ -356,7 +356,7 @@ func newReport() {
 		}
 		return nil
 	}(); err != nil {
-		msgBoxErr(err.Error())
+		errorDialog(err.Error())
 	}
 }
 
@@ -397,6 +397,9 @@ func runWork(work func(ctx context.Context) error) {
 	ctx, interruptWorkFunc = context.WithCancel(appCtx)
 	wgWork.Add(1)
 	go func() {
+
+		defer panicWithSaveRecoveredErrorToFile()
+
 		err := work(ctx)
 
 		interruptWorkFunc()
@@ -413,7 +416,8 @@ func runWork(work func(ctx context.Context) error) {
 				return
 			}
 			setStatusErr(labelWorkStatus, err)
-			walk.MsgBox(appWindow, "Произошла ошибка", err.Error(), walk.MsgBoxIconError)
+			saveErrorToFile(err.Error())
+			errorDialog(err.Error())
 		})
 	}()
 }

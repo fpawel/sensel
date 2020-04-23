@@ -15,13 +15,7 @@ import (
 )
 
 func Main() {
-	defer func() {
-		x := recover()
-		panicMsgBox(x)
-		if x != nil {
-			panic(x)
-		}
-	}()
+	defer panicWithSaveRecoveredErrorToFile()
 
 	exeDir := filepath.Dir(os.Args[0])
 

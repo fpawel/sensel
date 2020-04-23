@@ -7,31 +7,42 @@ import (
 	"github.com/lxn/walk"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 )
+
+func saveErrorToFile(saveErr string) {
+	file, err := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "errors.log"), os.O_CREATE|os.O_APPEND, 0666)
+	must.FatalIf(err)
+	defer func() {
+		must.FatalIf(file.Close())
+	}()
+	_, err = file.WriteString(time.Now().Format("2006.01.02 15:04:05") + " " + strings.TrimSpace(saveErr) + "\n")
+	must.FatalIf(err)
+}
 
 func formatMeasureInfo(m data.MeasurementInfo) string {
 	return fmt.Sprintf("%4d - %s - %s %s - %q",
 		m.MeasurementID, m.CreatedAt.Format("2006.01.02 15:04"), m.Device, m.Kind, m.Name)
 }
 
-func msgBoxErr(msg string) {
-	dir := filepath.Dir(os.Args[0])
-	msg = strings.ReplaceAll(msg, dir+"\\", "")
-	walk.MsgBox(nil, "Установка контроля ЧЭ", msg,
-		walk.MsgBoxIconError|walk.MsgBoxOK|walk.MsgBoxSystemModal)
-}
-
-func panicMsgBox(x interface{}) {
-	switch x := x.(type) {
-	case nil:
-		return
-	case error:
-		msgBoxErr(x.Error())
-	default:
-		msgBoxErr(fmt.Sprintf("%+v", x))
+func panicWithSaveRecoveredErrorToFile() {
+	msgBoxErr := func(msg string) {
+		dir := filepath.Dir(os.Args[0])
+		msg = strings.ReplaceAll(msg, dir+"\\", "")
+		walk.MsgBox(nil, "Установка контроля ЧЭ", msg,
+			walk.MsgBoxIconError|walk.MsgBoxOK|walk.MsgBoxSystemModal)
 	}
+
+	x := recover()
+	if x == nil {
+		return
+	}
+	errStr := fmt.Sprintf("panic: %+v", x)
+	saveErrorToFile(errStr + ": " + string(debug.Stack()))
+	msgBoxErr(errStr)
+	panic(x)
 }
 
 func setStatusOkSync(label *walk.LineEdit, text string) {
