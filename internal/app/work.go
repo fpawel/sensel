@@ -29,8 +29,6 @@ func runMeasure(measurement data.Measurement) {
 			return fmt.Errorf("%s: %s: %w", measurement.Device, measurement.Kind, err)
 		}
 
-		//measurement.Pgs = make([]float64, len(scheme))
-
 		// подключить все места
 		if err := setupPlaceConnection(log, ctx, 0xFFFF); err != nil {
 			return err
@@ -61,6 +59,7 @@ func runMeasure(measurement data.Measurement) {
 				return err
 			}
 
+			// установить рабочий ток
 			if err := setupCurrentBar(log, ctx, smp.Current); err != nil {
 				return err
 			}
