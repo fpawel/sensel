@@ -36,6 +36,15 @@ func switchOffGas(log comm.Logger, ctx context.Context) error {
 }
 
 func switchGas(log comm.Logger, ctx context.Context, gas int) error {
+
+	if gas < 0 {
+		log.Panicln("gas: negative value", gas)
+	}
+
+	if gas == 0 {
+		return switchOffGas(log, ctx)
+	}
+
 	setStatusOkSync(labelGasBlock, fmt.Sprintf("переключение %d", gas))
 	b := []byte{0x06, 0x03, 0x03, 0x02, byte(gas), 0}
 	for i := range b[:len(b)-1] {
@@ -163,7 +172,7 @@ func readBreak(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 			return ctx.Err()
 		}
 
-		// закоротить место i, остальные места разомкнуть
+		// замкнуть место i, остальные места разомкнуть
 		if err := setupPlaceConnection(log, ctx, 1<<i); err != nil {
 			return err
 		}

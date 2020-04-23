@@ -55,6 +55,10 @@ func newApplicationWindow() MainWindow {
 				Text:     "Управление",
 				Items: []MenuItem{
 					Action{
+						Text:        "Проверка связи",
+						OnTriggered: runCheckConnection,
+					},
+					Action{
 						Text:        "Опрос вольтметра",
 						OnTriggered: runReadVoltmeter,
 					},

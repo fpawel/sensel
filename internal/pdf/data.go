@@ -104,6 +104,9 @@ func newTableRows1(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 		return float64(smp.Gas + 1), 0
 	})
 	newMeasureRow("ПГС", func(smp data.Sample) (float64, int) {
+		if len(m.Pgs) <= smp.Gas {
+			return 0, 0
+		}
 		return m.Pgs[smp.Gas], 2
 	})
 	return

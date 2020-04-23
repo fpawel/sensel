@@ -9,6 +9,7 @@ import (
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
+	"github.com/lxn/walk"
 	"time"
 )
 
@@ -27,6 +28,8 @@ func runMeasure(measurement data.Measurement) {
 		if err != nil {
 			return fmt.Errorf("%s: %s: %w", measurement.Device, measurement.Kind, err)
 		}
+
+		//measurement.Pgs = make([]float64, len(scheme))
 
 		// подключить все места
 		if err := setupPlaceConnection(log, ctx, 0xFFFF); err != nil {
@@ -64,7 +67,7 @@ func runMeasure(measurement data.Measurement) {
 
 			// установить газ
 			if err := switchGas(log, ctx, smp.Gas); err != nil {
-				//return err
+				return err
 			}
 
 			ctxDelay, _ := context.WithTimeout(ctx, smp.Duration)
@@ -77,6 +80,9 @@ func runMeasure(measurement data.Measurement) {
 				return err
 			}
 		}
+
+		walk.MsgBox(appWindow, "Обмер завершён", fmt.Sprintf("Обмер %d завершён успешно.", measurement.MeasurementID), walk.MsgBoxIconInformation)
+
 		return nil
 	})
 }
@@ -188,6 +194,34 @@ func readSample(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 	}
 	smp.Tm = time.Now()
 	return nil
+}
+
+func runCheckConnection() {
+	runWork(func(ctx context.Context) error {
+		var smp data.Sample
+		// проверить вольтметр
+		if err := readVoltmeter(log, ctx, &smp); err != nil {
+			return err
+		}
+		// отключить все места
+		if err := setupPlaceConnection(log, ctx, 0); err != nil {
+			return err
+		}
+		// установить напряжение 10В
+		if err := setupTensionBar(log, ctx, 10); err != nil {
+			return err
+		}
+		// установить ток 0
+		if err := setupCurrentBar(log, ctx, 0); err != nil {
+			return err
+		}
+		// отключить газ
+		if err := switchGas(log, ctx, 0); err != nil {
+			return err
+		}
+		walk.MsgBox(appWindow, "Связь установлена", "Связь установлена. Оборудование отвечает.", walk.MsgBoxIconInformation)
+		return nil
+	})
 }
 
 func runReadVoltmeter() {
