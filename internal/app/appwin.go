@@ -437,7 +437,7 @@ func startMeasure() {
 	handleComboboxMeasurements = false
 	must.PanicIf(comboboxMeasurements.SetModel(xs))
 	handleComboboxMeasurements = true
-	setMeasurementViewUISafe(m)
+	setMeasurementView(m)
 	runMeasure(m)
 }
 

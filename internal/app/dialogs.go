@@ -190,7 +190,7 @@ func runDialogMeasurement() (data.Measurement, bool) {
 	var m data.Measurement
 	_ = data.GetLastMeasurement(db, &m)
 	m.Name = ""
-	if len(m.Pgs) == 0 {
+	if len(m.Pgs) < 4 {
 		m.Pgs = make([]float64, 4)
 	}
 

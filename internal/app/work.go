@@ -88,8 +88,7 @@ func runMeasure(measurement data.Measurement) {
 
 func readAndSaveCurrentSample(log comm.Logger, ctx context.Context, m *data.Measurement) error {
 	dataSmp := &m.Samples[len(m.Samples)-1]
-	err := readSample(log, ctx, dataSmp)
-	if err != nil {
+	if err := readSample(log, ctx, dataSmp); err != nil {
 		return err
 	}
 	if err := data.SaveMeasurement(db, m); err != nil {

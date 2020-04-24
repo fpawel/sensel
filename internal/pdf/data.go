@@ -101,13 +101,10 @@ func newTableRows1(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 		return smp.Q, 3
 	})
 	newMeasureRow("Газ", func(smp data.Sample) (float64, int) {
-		return float64(smp.Gas + 1), 0
+		return float64(smp.Gas), 0
 	})
 	newMeasureRow("ПГС", func(smp data.Sample) (float64, int) {
-		if len(m.Pgs) <= smp.Gas {
-			return 0, 0
-		}
-		return m.Pgs[smp.Gas], 2
+		return m.Pgs[smp.Gas-1], 2
 	})
 	return
 }
@@ -208,10 +205,10 @@ func newTableMeasureSamples(m data.Measurement, side bool) (rows []tableCells) {
 			return smp.Q, 3
 		})
 		newMeasureRow("Газ", func(smp data.Sample) (float64, int) {
-			return float64(smp.Gas + 1), 0
+			return float64(smp.Gas), 0
 		})
 		newMeasureRow("ПГС", func(smp data.Sample) (float64, int) {
-			return m.Pgs[smp.Gas], 2
+			return m.Pgs[smp.Gas-1], 2
 		})
 	}
 
