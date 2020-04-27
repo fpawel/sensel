@@ -63,6 +63,10 @@ func newApplicationWindow() MainWindow {
 						OnTriggered: runReadVoltmeter,
 					},
 					Action{
+						Text:        "Опрос установки контроля",
+						OnTriggered: runReadSample,
+					},
+					Action{
 						Text:        "Поиск обрыва",
 						OnTriggered: runSearchBreak,
 					},
@@ -106,7 +110,7 @@ func newApplicationWindow() MainWindow {
 								OnCurrentIndexChanged: comboboxMeasurementsCurrentIndexChanged,
 								ContextMenuItems: []MenuItem{
 									Action{
-										Text:        "Коментарий...",
+										Text:        "Комментарий...",
 										OnTriggered: runCurrentMeasurementNameDialog,
 									},
 									Action{

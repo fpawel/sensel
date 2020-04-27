@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/comport"
@@ -22,14 +23,21 @@ type Config struct {
 	Debug              struct {
 		LogComm bool `yaml:"log_comm"`
 	} `yaml:"debug"`
-
 	Table                 TableConfig `yaml:"table"`
 	LastMeasurementsCount int         `yaml:"last_measurements_count"`
 }
 
 type Gas struct {
-	Addr byte `yaml:"addr"`
-	Comm `yaml:"comm"`
+	ConsChan      byte   `yaml:"cons_chan"`
+	ConsByteOrder string `yaml:"cons_byte_order"`
+	Comm          `yaml:"comm"`
+}
+
+func (x Gas) GetConsByteOrder() binary.ByteOrder {
+	if x.ConsByteOrder == "big" {
+		return binary.BigEndian
+	}
+	return binary.LittleEndian
 }
 
 type Voltmeter struct {
@@ -137,6 +145,8 @@ func init() {
 		c = Config{
 			ReadSampleInterval: 5 * time.Second,
 			Gas: Gas{
+				ConsChan:      0,
+				ConsByteOrder: "little",
 				Comm: Comm{
 					BaudRate:           9600,
 					TimeoutGetResponse: time.Second,

@@ -167,6 +167,13 @@ func readSample(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 	if smp.BreakAll() {
 		return errors.New("все элементы в планке оборваны")
 	}
+
+	var err error
+	smp.Q, err = readGasConsumption(log, ctx)
+	if err != nil {
+		return err
+	}
+
 	if err := readVoltmeter(log, ctx, smp); err != nil {
 		return err
 	}
@@ -227,6 +234,19 @@ func runReadVoltmeter() {
 		for {
 			var smp data.Sample
 			err := readVoltmeter(log, ctx, &smp)
+			if err != nil {
+				return err
+			}
+			setSampleViewUISafe(smp)
+		}
+	})
+}
+
+func runReadSample() {
+	runWork(func(ctx context.Context) error {
+		for {
+			var smp data.Sample
+			err := readSample(log, ctx, &smp)
 			if err != nil {
 				return err
 			}

@@ -41,3 +41,8 @@ func (x *luaConsole) SetConnectionB(strPlaceConnection string) {
 	}
 	x.errorIf(setupPlaceConnection(log, x.L.Context(), uint16(v)))
 }
+
+func (x *luaConsole) ReadGasConsumption() {
+	_, err := readGasConsumption(log, x.L.Context())
+	x.errorIf(err)
+}

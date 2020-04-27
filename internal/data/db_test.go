@@ -50,7 +50,7 @@ func TestCreateDB(t *testing.T) {
 					Kind:      "измерительный",
 				},
 				MeasurementData: MeasurementData{
-					Pgs:     []float64{rand3(), rand3(), rand3(), rand3(), rand3()},
+					Pgs:     []float64{rand3(), rand3(), rand3(), rand3()},
 					Samples: samples,
 				},
 			}
@@ -147,7 +147,7 @@ var transformTime = cmp.Transformer("", func(in time.Time) timeTime {
 
 func randSamples(xs []Sample) {
 	for i := range xs {
-		xs[i].Gas = i % 4
+		xs[i].Gas = i%4 + 1
 		xs[i].T = rand3()
 		xs[i].I = rand3()
 		xs[i].Q = rand3()

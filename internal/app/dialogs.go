@@ -30,11 +30,12 @@ func executeConsole() {
 	}()
 	L.SetGlobal("go", luar.New(L, &luaConsole{L: L}))
 
-	helpStr := "go:Gas(1)\r\n" +
+	const helpStr = "go:Gas(1)\r\n" +
 		"go:SetTension(10)\r\n" +
 		"go:SetCurrent(0.05)\r\n" +
 		"go:SetConnection(0xFFFF)\r\n" +
-		"go:SetConnectionB('1111111111111111')\r\n"
+		"go:SetConnectionB('1111111111111111')\r\n" +
+		"go:ReadGasConsumption()\r\n"
 
 	var (
 		edCmd    *walk.TextEdit

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/comm/modbus"
@@ -47,9 +48,7 @@ func switchGas(log comm.Logger, ctx context.Context, gas int) error {
 
 	setStatusOkSync(labelGasBlock, fmt.Sprintf("переключение %d", gas))
 	b := []byte{0x06, 0x03, 0x03, 0x02, byte(gas), 0}
-	for i := range b[:len(b)-1] {
-		b[5] += b[i]
-	}
+	addSumBytesToEnd(b)
 	c := cfg.Get()
 
 	log = structloge.PrependSuffixKeys(log, "COMPORT", c.Gas.Comport)
@@ -60,17 +59,69 @@ func switchGas(log comm.Logger, ctx context.Context, gas int) error {
 		return fmt.Errorf("газовый блок: %s: %w", c.Gas.Comm.Comport, err)
 	}
 
-	a := []byte{0x07, 0x03, 0x03, 0x02, byte(gas), 0x00, 0x00}
-	for i := range a[:len(a)-1] {
-		a[6] += a[i]
-	}
-	if !cmp.Equal(a, r) {
-		err := fmt.Errorf("получен ответ % X, ожидалось % X", r, a)
+	b = []byte{0x07, 0x03, 0x03, 0x02, byte(gas), 0x00, 0x00}
+	addSumBytesToEnd(b)
+	if !cmp.Equal(b, r) {
+		err := fmt.Errorf("получен ответ % X, ожидалось % X", r, b)
 		setStatusErrSync(labelGasBlock, err)
 		return fmt.Errorf("газовый блок: %w", err)
 	}
 	setStatusOkSync(labelGasBlock, fmt.Sprintf("газ %d", gas))
 	return nil
+}
+
+func addSumBytesToEnd(b []byte) {
+	n := len(b) - 1
+	b[n] = 0
+	for i := range b[:n] {
+		b[n] += b[i]
+	}
+}
+
+func checkSumBytesEnd(b []byte) bool {
+	n := len(b) - 1
+	var x byte
+	for i := range b[:n] {
+		x += b[i]
+	}
+	return x == b[n]
+}
+
+func readGasConsumption(log comm.Logger, ctx context.Context) (float64, error) {
+	c := cfg.Get()
+	log = structloge.PrependSuffixKeys(log,
+		"COMPORT", c.Gas.Comport,
+		"gas_block_request", "`запрос расхода`")
+
+	b := []byte{0x06, 0x03, 0x03, 0x04, c.Gas.ConsChan, 0}
+	addSumBytesToEnd(b)
+
+	r, err := c.CommGas().GetResponse(log, ctx, b)
+	if err != nil {
+		setStatusErrSync(labelGasBlock, err)
+		return 0, fmt.Errorf("газовый блок: %s: %w", c.Gas.Comm.Comport, err)
+	}
+	if len(r) < 11 {
+		return 0, errors.New("ожидалось 11 байт")
+	}
+	if !checkSumBytesEnd(r) {
+		return 0, errors.New("не совпадает контрольная сумма")
+	}
+	bits := c.Gas.GetConsByteOrder().Uint32(r[6:])
+	f32 := math.Float32frombits(bits)
+	str := strconv.FormatFloat(float64(f32), 'f', -1, 32)
+	f64, _ := strconv.ParseFloat(str, 64)
+	if math.IsNaN(f64) || math.IsInf(f64, -1) || math.IsInf(f64, 1) || math.IsInf(f64, 0) {
+		return f64, fmt.Errorf("not a float %v number", c.Gas.GetConsByteOrder())
+	}
+	q := -2.0*f64/1000. + 0.02
+	a := 1.
+	if q >= 0 {
+		a = -1
+	}
+	q = (q + a) / 0.8
+	setStatusOkSync(labelGasBlock, fmt.Sprintf("расход %v", q))
+	return q, nil
 }
 
 func setupTensionBar(log comm.Logger, ctx context.Context, U float64) error {

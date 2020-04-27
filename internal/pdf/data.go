@@ -88,10 +88,10 @@ func newTableRows1(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 		rows = append(rows, row)
 	}
 
-	newMeasureRow("U,мВ", func(smp data.Sample) (float64, int) {
+	newMeasureRow("U,В", func(smp data.Sample) (float64, int) {
 		return smp.Ub, 2
 	})
-	newMeasureRow("I,мA", func(smp data.Sample) (float64, int) {
+	newMeasureRow("I,A", func(smp data.Sample) (float64, int) {
 		return smp.I, 3
 	})
 	newMeasureRow("Т\"C", func(smp data.Sample) (float64, int) {
@@ -191,10 +191,10 @@ func newTableMeasureSamples(m data.Measurement, side bool) (rows []tableCells) {
 	}
 
 	if side {
-		newMeasureRow("U,мВ", func(smp data.Sample) (float64, int) {
+		newMeasureRow("U,В", func(smp data.Sample) (float64, int) {
 			return smp.Ub, 2
 		})
-		newMeasureRow("I,мA", func(smp data.Sample) (float64, int) {
+		newMeasureRow("I,A", func(smp data.Sample) (float64, int) {
 			return smp.I, 3
 		})
 		newMeasureRow("Т\"C", func(smp data.Sample) (float64, int) {

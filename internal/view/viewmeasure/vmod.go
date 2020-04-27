@@ -82,7 +82,7 @@ func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 	addRowNoCalc("Q,мл/мин", func(s smp) interface{} {
 		return pkg.FormatFloat(s.Q, 2)
 	})
-	addRowNoCalc("I,мА", func(s smp) interface{} {
+	addRowNoCalc("I,А", func(s smp) interface{} {
 		return pkg.FormatFloat(s.I*1000., 3)
 	})
 	addRowNoCalc("U,В", func(s smp) interface{} {
