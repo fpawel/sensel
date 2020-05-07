@@ -185,8 +185,9 @@ func runDialogMeasurement() (data.Measurement, bool) {
 		cbDevice, cbKind *walk.ComboBox
 		edName           *walk.LineEdit
 		neGas            [4]*walk.NumberEdit
-		nDevice, nKind   int
 	)
+	nDevice := -1
+	nKind := -1
 
 	var m data.Measurement
 	_ = data.GetLastMeasurement(db, &m)
@@ -244,6 +245,7 @@ func runDialogMeasurement() (data.Measurement, bool) {
 							if len(model) > 0 {
 								must.PanicIf(cbKind.SetCurrentIndex(0))
 							}
+							pbOk.SetEnabled(nDevice >= 0 && nKind >= 0)
 						},
 					},
 					ComboBox{
@@ -252,6 +254,8 @@ func runDialogMeasurement() (data.Measurement, bool) {
 						Model:        kinds,
 						OnCurrentIndexChanged: func() {
 							m.Kind = cbKind.Text()
+							pbOk.SetEnabled(nDevice >= 0 && nKind >= 0)
+
 						},
 					},
 
@@ -300,6 +304,7 @@ func runDialogMeasurement() (data.Measurement, bool) {
 						OnClicked: func() {
 							dialog.Accept()
 						},
+						Enabled: nDevice >= 0 && nKind >= 0,
 					},
 					PushButton{
 						AssignTo: &pbCancel,

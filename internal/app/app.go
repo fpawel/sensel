@@ -8,6 +8,7 @@ import (
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/jmoiron/sqlx"
+	"github.com/lxn/walk"
 	"github.com/lxn/win"
 	"github.com/powerman/structlog"
 	"os"
@@ -37,6 +38,10 @@ func Main() {
 	must.PanicIf(err)
 
 	must.PanicIf(newApplicationWindow().Create())
+
+	appWindow.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
+
+	})
 
 	// связывание TableView с моделью
 	viewmeasure.NewMainTableViewModel(tableViewMeasure)
