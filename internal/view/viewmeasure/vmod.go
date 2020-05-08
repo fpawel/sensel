@@ -3,6 +3,7 @@ package viewmeasure
 import (
 	"fmt"
 	"github.com/fpawel/sensel/internal/calc"
+	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg"
 	"github.com/fpawel/sensel/internal/pkg/must"
@@ -181,11 +182,16 @@ func (x *TableViewModel) columns() (xs []tableViewColumn) {
 		})
 	}
 
-	for _, c := range x.cs {
+	cws := cfg.Get().AppWindow.TableViewMeasure.ColumnWidths
+	for i, c := range x.cs {
+		w := 80
+		if i < len(cws) {
+			w = cws[i]
+		}
 		appendResult(tableViewColumn{
 			Name:  fmt.Sprintf("column%d%s", c.Index, c.Name),
 			Title: c.Name,
-			Width: 80,
+			Width: w,
 		})
 	}
 	return

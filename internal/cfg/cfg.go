@@ -1,11 +1,10 @@
 package cfg
 
 import (
-	"encoding/binary"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"github.com/fpawel/comm"
-	"github.com/fpawel/comm/comport"
-	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -25,19 +24,11 @@ type Config struct {
 	} `yaml:"debug"`
 	Table                 TableConfig `yaml:"table"`
 	LastMeasurementsCount int         `yaml:"last_measurements_count"`
+	AppWindow             AppWindow   `yaml:"app_window"`
 }
 
 type Gas struct {
-	ConsChan      byte   `yaml:"cons_chan"`
-	ConsByteOrder string `yaml:"cons_byte_order"`
-	Comm          `yaml:"comm"`
-}
-
-func (x Gas) GetConsByteOrder() binary.ByteOrder {
-	if x.ConsByteOrder == "big" {
-		return binary.BigEndian
-	}
-	return binary.LittleEndian
+	Comm `yaml:"comm"`
 }
 
 type Voltmeter struct {
@@ -67,23 +58,12 @@ type TableConfig struct {
 	IncludeSamples   bool    `yaml:"include_samples"`
 }
 
-func (x Config) CommControl() comm.T {
-	c := x.ControlSheet
-	return comm.New(comports.GetComport(c.Comport, c.BaudRate), c.Comm.Comm())
+type AppWindow struct {
+	TableViewMeasure TableViewMeasure `yaml:"table_view_measure"`
 }
 
-func (x Config) CommGas() comm.T {
-	c := x.Gas
-	return comm.New(comports.GetComport(c.Comport, c.BaudRate), c.Comm.Comm())
-}
-
-func (x Config) CommVoltmeter() comm.T {
-	return comm.New(x.ComportVoltmeter(), x.Voltmeter.Comm.Comm())
-}
-
-func (x Config) ComportVoltmeter() *comport.Port {
-	c := x.Voltmeter
-	return comports.GetComport(c.Comport, c.BaudRate)
+type TableViewMeasure struct {
+	ColumnWidths []int `yaml:"column_widths"`
 }
 
 func (x Comm) Comm() comm.Config {
@@ -97,8 +77,7 @@ func (x Comm) Comm() comm.Config {
 func Get() (r Config) {
 	mu.Lock()
 	defer mu.Unlock()
-	must.UnmarshalJson(must.MarshalJson(cfg), &r)
-	return
+	return getGob()
 }
 
 func Set(c Config) error {
@@ -145,8 +124,6 @@ func init() {
 		c = Config{
 			ReadSampleInterval: 5 * time.Second,
 			Gas: Gas{
-				ConsChan:      0,
-				ConsByteOrder: "little",
 				Comm: Comm{
 					BaudRate:           9600,
 					TimeoutGetResponse: time.Second,
@@ -186,7 +163,17 @@ func init() {
 	must.PanicIf(Set(c))
 }
 
+func getGob() (r Config) {
+	must.PanicIf(enc.Encode(cfg))
+	must.PanicIf(dec.Decode(&r))
+	return
+}
+
 var (
 	mu  sync.Mutex
 	cfg Config
+
+	buff = new(bytes.Buffer)
+	enc  = gob.NewEncoder(buff)
+	dec  = gob.NewDecoder(buff)
 )
