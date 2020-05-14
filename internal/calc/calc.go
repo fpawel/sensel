@@ -60,7 +60,7 @@ func New(filename string) (C, error) {
 		return Sample{
 			Gas:      gas,
 			Tension:  U,
-			Current:  I / 1000.,
+			Current:  I,
 			Duration: dur,
 		}
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ansel1/merry"
 	"github.com/fpawel/comm"
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/cfg"
@@ -18,8 +17,18 @@ func runMeasure(measurement data.Measurement) {
 	runWork(func(ctx context.Context) error {
 
 		defer func() {
-			setStatusOkSync(labelWorkStatus, "Отключение газа по окончании обмера")
+			setStatusOkSync(labelWorkStatus, "Подача воздуха по окончании обмера")
 			if err := switchOffGas(log, context.Background()); err != nil {
+				log.PrintErr(err)
+			}
+
+			setStatusOkSync(labelWorkStatus, "Установка тока 0 по окончании обмера")
+			if err := setupCurrentBar(log, context.Background(), 0); err != nil {
+				log.PrintErr(err)
+			}
+
+			setStatusOkSync(labelWorkStatus, "Установка напряжения 0 по окончании обмера")
+			if err := setupTensionBar(log, context.Background(), 0); err != nil {
 				log.PrintErr(err)
 			}
 		}()
@@ -69,11 +78,12 @@ func runMeasure(measurement data.Measurement) {
 				return err
 			}
 
-			ctxDelay, _ := context.WithTimeout(ctx, smp.Duration)
-			if err := delay(log, ctxDelay, measurement, scheme); err != nil {
+			if err := readSample(log, ctx, &measurement.Samples[nSample]); err != nil {
 				return err
 			}
-			pause(ctx.Done(), cfg.Get().Voltmeter.PauseScan)
+			if err := delay(log, ctx, measurement, scheme); err != nil {
+				return err
+			}
 
 			if err := readAndSaveCurrentSample(log, ctx, &measurement); err != nil {
 				return err
@@ -99,6 +109,7 @@ func readAndSaveCurrentSample(log comm.Logger, ctx context.Context, m *data.Meas
 }
 
 func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []calc.Sample) error {
+	defer pause(ctx.Done(), cfg.Get().Voltmeter.PauseMeasureScan)
 
 	smpIndex := len(m.Samples) - 1
 
@@ -107,7 +118,7 @@ func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []ca
 	}
 
 	smp := scheme[smpIndex]
-	tickUpdGui := time.NewTicker(time.Second * 2)
+
 	startTime := time.Now()
 
 	upd := func() {
@@ -136,7 +147,6 @@ func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []ca
 	})
 
 	defer func() {
-		tickUpdGui.Stop()
 		appWindow.Synchronize(func() {
 			progressBarCurrentWork.SetVisible(false)
 			progressBarTotalWork.SetVisible(false)
@@ -144,22 +154,35 @@ func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []ca
 			labelTotalDelay.SetVisible(false)
 		})
 	}()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-tickUpdGui.C:
-			appWindow.Synchronize(upd)
-		default:
-			err := readSample(log, ctx, &m.Samples[smpIndex])
-			if err != nil {
-				if merry.Is(err, context.DeadlineExceeded) {
-					return nil
-				}
-				return err
+
+	ctxDelay, cancelDelay := context.WithTimeout(ctx, smp.Duration)
+	defer cancelDelay()
+
+	go func() {
+		tickUpdGui := time.NewTicker(time.Second * 1)
+		defer tickUpdGui.Stop()
+		for {
+			select {
+			case <-ctxDelay.Done():
+				return
+			case <-tickUpdGui.C:
+				appWindow.Synchronize(upd)
 			}
-			setMeasurementViewUISafe(m)
 		}
+	}()
+
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if ctxDelay.Err() == context.DeadlineExceeded {
+			return nil
+		}
+		if err := readSample(log, ctx, &m.Samples[smpIndex]); err != nil {
+			return err
+		}
+		setMeasurementViewUISafe(m)
+		pause(ctxDelay.Done(), cfg.Get().Voltmeter.PauseMeasureScan)
 	}
 }
 

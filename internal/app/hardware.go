@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fpawel/comm"
+	"github.com/fpawel/comm/comport"
 	"github.com/fpawel/comm/modbus"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
-	"github.com/fpawel/sensel/internal/pkg"
 	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/structloge"
 	"github.com/google/go-cmp/cmp"
@@ -335,8 +335,8 @@ func commControl() comm.T {
 }
 
 func commGas() comm.T {
-	if isMockComport() {
-		return pkg.MockComm(mockGas)
+	if os.Getenv("SENSEL_NO_GAS_BLOCK") == "true" {
+		return comport.NewMock(mockGas)
 	}
 
 	c := cfg.Get().Gas
@@ -344,23 +344,19 @@ func commGas() comm.T {
 }
 
 func commVoltmeter() comm.T {
-	if isMockComport() {
-		return pkg.MockComm(mockVoltmeter)
+	if os.Getenv("SENSEL_NO_VOLTMETER") == "true" {
+		return comport.NewMock(mockVoltmeter)
 	}
 	c := cfg.Get().Voltmeter
 	return comm.New(comportVoltmeter(), c.Comm.Comm())
 }
 
 func comportVoltmeter() io.ReadWriter {
-	if isMockComport() {
-		return pkg.MockComport(mockVoltmeter)
+	if os.Getenv("SENSEL_NO_VOLTMETER") == "true" {
+		return comport.NewMockPort(mockVoltmeter)
 	}
 	c := cfg.Get().Voltmeter
 	return comports.GetComport(c.Comport, c.BaudRate)
-}
-
-func isMockComport() bool {
-	return os.Getenv("MOCK_COMPORT") == "true"
 }
 
 var mockVoltmeter = func() func([]byte) []byte {

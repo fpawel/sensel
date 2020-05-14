@@ -220,6 +220,12 @@ func runDialogMeasurement() (data.Measurement, bool) {
 		}
 	}
 
+	setIdx := func() {
+		nDevice = cbDevice.CurrentIndex()
+		nKind = cbKind.CurrentIndex()
+		pbOk.SetEnabled(nDevice >= 0 && nKind >= 0)
+	}
+
 	dlg := Dialog{
 		AssignTo: &dialog,
 		Font: Font{
@@ -245,7 +251,7 @@ func runDialogMeasurement() (data.Measurement, bool) {
 							if len(model) > 0 {
 								must.PanicIf(cbKind.SetCurrentIndex(0))
 							}
-							pbOk.SetEnabled(nDevice >= 0 && nKind >= 0)
+							setIdx()
 						},
 					},
 					ComboBox{
@@ -254,30 +260,32 @@ func runDialogMeasurement() (data.Measurement, bool) {
 						Model:        kinds,
 						OnCurrentIndexChanged: func() {
 							m.Kind = cbKind.Text()
-							pbOk.SetEnabled(nDevice >= 0 && nKind >= 0)
-
+							setIdx()
 						},
 					},
 
-					Label{Text: "ПГС"},
+					Label{Text: "ПГС1"},
 					NumberEdit{
 						Decimals:       2,
 						AssignTo:       &neGas[0],
 						Value:          pgs(0),
 						OnValueChanged: onEditPgs(0),
 					},
+					Label{Text: "ПГС2"},
 					NumberEdit{
 						Decimals:       2,
 						AssignTo:       &neGas[1],
 						Value:          pgs(1),
 						OnValueChanged: onEditPgs(1),
 					},
+					Label{Text: "ПГС3"},
 					NumberEdit{
 						Decimals:       2,
 						AssignTo:       &neGas[2],
 						Value:          pgs(2),
 						OnValueChanged: onEditPgs(2),
 					},
+					Label{Text: "ПГС4"},
 					NumberEdit{
 						Decimals:       2,
 						AssignTo:       &neGas[3],
@@ -317,8 +325,10 @@ func runDialogMeasurement() (data.Measurement, bool) {
 			},
 		},
 	}
+	err := dlg.Create(appWindow)
+	must.PanicIf(err)
 
-	r, err := dlg.Run(appWindow)
+	r := dialog.Run()
 	must.PanicIf(err)
 	m.Samples = nil
 	m.MeasurementID = 0

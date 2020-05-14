@@ -32,8 +32,9 @@ type Gas struct {
 }
 
 type Voltmeter struct {
-	Comm      `yaml:"comm"`
-	PauseScan time.Duration `yaml:"pause_scan"`
+	Comm             `yaml:"comm"`
+	PauseScan        time.Duration `yaml:"pause_scan"`
+	PauseMeasureScan time.Duration `yaml:"pause_measure_scan"`
 }
 
 type Control struct {
@@ -138,7 +139,8 @@ func init() {
 					TimeoutEndResponse: 50 * time.Millisecond,
 					MaxAttemptsRead:    3,
 				},
-				PauseScan: 3 * time.Second,
+				PauseScan:        3 * time.Second,
+				PauseMeasureScan: time.Second,
 			},
 			ControlSheet: Control{
 				Comm: Comm{
