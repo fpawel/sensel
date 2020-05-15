@@ -12,14 +12,25 @@ import (
 	"path/filepath"
 )
 
-func New(m data.Measurement, cs []calc.Column, cfg TableConfig, includeSamples bool) error {
+func NewFile(m data.Measurement, cs []calc.Column, cfg TableConfig, includeSamples bool) (string, error) {
 	dir, err := prepareDir()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	d := newDoc(m, cs, cfg, includeSamples)
-	if err := saveAndShowDoc(d, dir, fmt.Sprintf("measure_%d", m.MeasurementID)); err != nil {
+
+	pdfFileName := filepath.Join(dir, fmt.Sprintf("measure_%d.pdf", m.MeasurementID))
+
+	if err := d.OutputFileAndClose(pdfFileName); err != nil {
+		return "", err
+	}
+
+	return pdfFileName, nil
+}
+
+func Print(filename, printer string) error {
+	if err := exec.Command("PDFtoPrinter", filename, printer).Start(); err != nil {
 		return err
 	}
 	return nil
@@ -111,19 +122,6 @@ func prepareDir() (string, error) {
 		return "", merry.WithMessage(err, "unable to create directory for pdf")
 	}
 	return dir, nil
-}
-
-func saveAndShowDoc(d *gofpdf.Fpdf, dir, fileName string) error {
-
-	pdfFileName := filepath.Join(dir, fileName+".pdf")
-
-	if err := d.OutputFileAndClose(pdfFileName); err != nil {
-		return err
-	}
-	if err := exec.Command("explorer.exe", pdfFileName).Start(); err != nil {
-		return err
-	}
-	return nil
 }
 
 var (

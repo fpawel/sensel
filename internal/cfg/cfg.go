@@ -15,6 +15,7 @@ import (
 )
 
 type Config struct {
+	Printer            string        `yaml:"printer"`
 	Gas                Gas           `yaml:"gas"`
 	Voltmeter          Voltmeter     `yaml:"voltmeter"`
 	ControlSheet       Control       `yaml:"control"`

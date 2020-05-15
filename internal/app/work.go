@@ -8,7 +8,9 @@ import (
 	"github.com/fpawel/sensel/internal/calc"
 	"github.com/fpawel/sensel/internal/cfg"
 	"github.com/fpawel/sensel/internal/data"
+	"github.com/fpawel/sensel/internal/pkg"
 	"github.com/lxn/walk"
+	"os/exec"
 	"time"
 )
 
@@ -54,6 +56,7 @@ func runMeasure(measurement data.Measurement) {
 			dataSmp := data.Sample{
 				Gas: smp.Gas,
 				Ub:  smp.Tension,
+				I:   smp.Current,
 			}
 
 			if nSample > 0 {
@@ -88,6 +91,15 @@ func runMeasure(measurement data.Measurement) {
 			if err := readAndSaveCurrentSample(log, ctx, &measurement); err != nil {
 				return err
 			}
+		}
+
+		filename, err := newPdf(measurement)
+		if err != nil {
+			return err
+		}
+
+		if err := exec.Command("PDFtoPrinter", filename, cfg.Get().Printer).Start(); err != nil {
+			return err
 		}
 
 		walk.MsgBox(appWindow, "Обмер завершён", fmt.Sprintf("Обмер %d завершён успешно.", measurement.MeasurementID), walk.MsgBoxIconInformation)
@@ -291,6 +303,46 @@ func runSearchBreak() {
 		}
 		setSampleViewUISafe(smp)
 		return nil
+	})
+}
+
+func runReadConsumption() {
+	tableViewMeasure.SetVisible(false)
+	scrollViewSelectMeasure.SetVisible(false)
+	labelCalcErr.SetVisible(false)
+	scrollViewCheckConsumption.SetVisible(true)
+
+	runWork(func(ctx context.Context) error {
+
+		defer func() {
+			tableViewMeasure.SetVisible(true)
+			scrollViewSelectMeasure.SetVisible(true)
+			scrollViewCheckConsumption.SetVisible(false)
+		}()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+
+			case gas := <-chGas:
+				if err := switchGas(log, ctx, gas); err != nil {
+					return err
+				}
+				appWindow.Synchronize(func() {
+					_ = labelGas.SetText(fmt.Sprintf("%d", gas))
+				})
+			default:
+				cons, err := readGasConsumption(log, ctx)
+				if err != nil {
+					return err
+				}
+				appWindow.Synchronize(func() {
+					_ = labelConsumption.SetText(pkg.FormatFloatTrimNulls(cons, 3))
+				})
+				pause(ctx.Done(), 50*time.Millisecond)
+			}
+		}
 	})
 }
 

@@ -97,4 +97,6 @@ var (
 	db     *sqlx.DB
 	appCtx context.Context
 	Calc   calc.C
+
+	chGas = make(chan int)
 )

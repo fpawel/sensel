@@ -66,7 +66,9 @@ func setStatusErr(label *walk.LineEdit, err error) {
 }
 
 func setStatusText(label *walk.LineEdit, ok bool, text string) {
-	must.PanicIf(label.SetText(time.Now().Format("15:04:05") + " " + text))
+	if err := label.SetText(time.Now().Format("15:04:05") + " " + text); err != nil {
+		return
+	}
 
 	var color walk.Color
 	if ok {

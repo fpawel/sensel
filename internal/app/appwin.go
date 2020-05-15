@@ -13,6 +13,7 @@ import (
 	"github.com/fpawel/sensel/internal/view/viewmeasure"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
+	"os/exec"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +24,14 @@ func newApplicationWindow() MainWindow {
 	bgWhite := SolidColorBrush{Color: walk.RGB(255, 255, 255)}
 
 	const widthStatusLabelCaption = 140
+
+	setGas := func(gas int) func() {
+		return func() {
+			go func() {
+				chGas <- gas
+			}()
+		}
+	}
 
 	return MainWindow{
 		AssignTo:   &appWindow,
@@ -42,6 +51,7 @@ func newApplicationWindow() MainWindow {
 				Visible:  false,
 				OnTriggered: func() {
 					interruptWorkFunc()
+					log.Debug("work interrupted")
 				},
 			},
 
@@ -58,6 +68,12 @@ func newApplicationWindow() MainWindow {
 						Text:        "Проверка связи",
 						OnTriggered: runCheckConnection,
 					},
+
+					Action{
+						Text:        "Газовый блок",
+						OnTriggered: runReadConsumption,
+					},
+
 					Action{
 						Text:        "Опрос вольтметра",
 						OnTriggered: runReadVoltmeter,
@@ -88,12 +104,10 @@ func newApplicationWindow() MainWindow {
 		Children: []Widget{
 
 			Composite{
-				Layout: VBox{
-					MarginsZero: true,
-					//SpacingZero: true,
-				},
+				Layout: VBox{MarginsZero: true},
 				Children: []Widget{
 					ScrollView{
+						AssignTo:      &scrollViewSelectMeasure,
 						VerticalFixed: true,
 						MaxSize:       Size{Height: 50, Width: 0},
 						MinSize:       Size{Height: 50, Width: 0},
@@ -132,6 +146,78 @@ func newApplicationWindow() MainWindow {
 							},
 						},
 					},
+
+					ScrollView{
+						AssignTo: &scrollViewCheckConsumption,
+						Visible:  false,
+						Layout: VBox{
+							MarginsZero: true,
+						},
+						HorizontalFixed: true,
+						Children: []Widget{
+
+							Composite{
+								Layout: HBox{
+									MarginsZero: true,
+								},
+								Children: []Widget{
+									PushButton{
+										Text:      "Газ 1",
+										OnClicked: setGas(1),
+									},
+									PushButton{
+										Text:      "Газ 2",
+										OnClicked: setGas(2),
+									},
+									PushButton{
+										Text:      "Газ 3",
+										OnClicked: setGas(3),
+									},
+									PushButton{
+										Text:      "Газ 4",
+										OnClicked: setGas(4),
+									},
+									PushButton{
+										Text:      "Выкл.",
+										OnClicked: setGas(0),
+									},
+								},
+							},
+
+							Composite{
+								Layout: HBox{MarginsZero: true},
+								Children: []Widget{
+									Label{
+										Text: "Газ:",
+										Font: Font{Family: "Segoe UI", PointSize: 40},
+									},
+									Label{
+										AssignTo:  &labelGas,
+										Text:      "1",
+										Font:      Font{Family: "Segoe UI", PointSize: 40},
+										TextColor: walk.RGB(0, 0, 128),
+									},
+								},
+							},
+
+							Composite{
+								Layout: HBox{MarginsZero: true},
+								Children: []Widget{
+									Label{
+										Text: "Расход:",
+										Font: Font{Family: "Segoe UI", PointSize: 40},
+									},
+									Label{
+										AssignTo:  &labelConsumption,
+										Text:      "0.12",
+										Font:      Font{Family: "Segoe UI", PointSize: 40},
+										TextColor: walk.RGB(0, 0, 128),
+									},
+								},
+							},
+						},
+					},
+
 					TableView{
 						AssignTo:                 &tableViewMeasure,
 						ColumnsOrderable:         false,
@@ -335,7 +421,22 @@ func comboboxMeasurementsCurrentIndexChanged() {
 	setMeasurementView(m)
 }
 
+func newPdf(m data.Measurement) (string, error) {
+	calcCols, err := Calc.CalculateMeasure(m)
+	if err != nil {
+		return "", err
+	}
+	c := cfg.Get().Table
+
+	return pdf.NewFile(m, calcCols, pdf.TableConfig{
+		RowHeight:      c.RowHeightMM,
+		CellHorizSpace: c.CellHorizSpaceMM,
+		FontSize:       c.FontSizePixels,
+	}, c.IncludeSamples)
+}
+
 func newReport() {
+
 	if err := func() error {
 		measurementID, err := getSelectedMeasurementID()
 		if err != nil {
@@ -346,19 +447,13 @@ func newReport() {
 		if err := data.GetMeasurement(db, &m); err != nil {
 			return err
 		}
-		calcCols, err := Calc.CalculateMeasure(m)
+
+		filename, err := newPdf(m)
 		if err != nil {
 			return err
 		}
-		c := cfg.Get().Table
-		if err := pdf.New(m, calcCols, pdf.TableConfig{
-			RowHeight:      c.RowHeightMM,
-			CellHorizSpace: c.CellHorizSpaceMM,
-			FontSize:       c.FontSizePixels,
-		}, c.IncludeSamples); err != nil {
-			return err
-		}
-		return nil
+
+		return exec.Command("explorer.exe", filename).Start()
 	}(); err != nil {
 		errorDialog(err.Error())
 	}
@@ -402,7 +497,10 @@ func runWork(work func(ctx context.Context) error) {
 	wgWork.Add(1)
 	go func() {
 
-		defer panicWithSaveRecoveredErrorToFile()
+		defer func() {
+			panicWithSaveRecoveredErrorToFile()
+			log.Debug("work done")
+		}()
 
 		err := work(ctx)
 
@@ -519,6 +617,9 @@ var (
 	tableViewMeasure *walk.TableView
 	labelCalcErr     *walk.LineEdit
 
+	labelConsumption *walk.Label
+	labelGas         *walk.Label
+
 	actionArchiveFilterLast,
 	actionArchiveFilterData *walk.Action
 
@@ -526,6 +627,8 @@ var (
 	labelControlSheet,
 	labelVoltmeter,
 	labelGasBlock *walk.LineEdit
+
+	scrollViewCheckConsumption, scrollViewSelectMeasure *walk.ScrollView
 
 	labelCurrentDelay      *walk.LineEdit
 	labelTotalDelay        *walk.LineEdit
