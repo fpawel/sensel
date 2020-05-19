@@ -1,10 +1,12 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -79,15 +81,50 @@ func setStatusText(label *walk.LineEdit, ok bool, text string) {
 	label.SetTextColor(color)
 }
 
-func pause(chDone <-chan struct{}, d time.Duration) {
+func pause(ctx context.Context, d time.Duration) {
 	timer := time.NewTimer(d)
+	defer timer.Stop()
 	for {
+		if ctx.Err() != nil {
+			return
+		}
 		select {
 		case <-timer.C:
 			return
-		case <-chDone:
-			timer.Stop()
+		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+func humanizeDuration(duration time.Duration) string {
+	days := int64(duration.Hours() / 24)
+	hours := int64(math.Mod(duration.Hours(), 24))
+	minutes := int64(math.Mod(duration.Minutes(), 60))
+	seconds := int64(math.Mod(duration.Seconds(), 60))
+
+	chunks := []struct {
+		singularName string
+		amount       int64
+	}{
+		{"day", days},
+		{"hour", hours},
+		{"minute", minutes},
+		{"second", seconds},
+	}
+
+	parts := []string{}
+
+	for _, chunk := range chunks {
+		switch chunk.amount {
+		case 0:
+			continue
+		case 1:
+			parts = append(parts, fmt.Sprintf("%d %s", chunk.amount, chunk.singularName))
+		default:
+			parts = append(parts, fmt.Sprintf("%d %ss", chunk.amount, chunk.singularName))
+		}
+	}
+
+	return strings.Join(parts, " ")
 }

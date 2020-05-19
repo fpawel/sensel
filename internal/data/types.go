@@ -29,6 +29,7 @@ type Sample struct {
 	T   float64
 	Ub  float64
 	I   float64
+	Ib  float64
 	U   [16]float64
 	Br  [16]bool
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/comports"
 	"github.com/fpawel/sensel/internal/pkg/must"
+	"github.com/fpawel/sensel/internal/pkg/winapi"
 	"github.com/fpawel/sensel/internal/view/viewarch"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
@@ -336,15 +337,31 @@ func runDialogMeasurement() (data.Measurement, bool) {
 	return m, r == walk.DlgCmdOK
 }
 
-func runAppSettingsDialog() {
+func runReportSettingsDialog() {
 	c := cfg.Get()
 	var (
 		edFontSizePixels,
 		edCellHorizSpaceMM,
 		edRowHeightMM *walk.NumberEdit
-		cbIncSamps *walk.CheckBox
-		dlg        *walk.Dialog
+		cbPrinter *walk.ComboBox
+		cbIncU    *walk.CheckBox
+		dlg       *walk.Dialog
 	)
+
+	printers, err := winapi.EnumPrinters()
+	must.PanicIf(err)
+	printers = append([]string{""}, printers...)
+	nPrinter := 0
+	for i, s := range printers {
+		if s == c.Printer {
+			nPrinter = i
+		}
+	}
+	if nPrinter < 1 {
+		c.Printer = ""
+	}
+	defaultPrinter, err := winapi.GetDefaultPrinter()
+	must.PanicIf(err)
 
 	r, err := Dialog{
 		Font: Font{
@@ -357,7 +374,6 @@ func runAppSettingsDialog() {
 		Title:    "Настройки",
 		Layout:   VBox{},
 		Children: []Widget{
-
 			Label{Text: "Высота строки таблицы, мм"},
 			NumberEdit{
 				AssignTo: &edRowHeightMM,
@@ -389,13 +405,35 @@ func runAppSettingsDialog() {
 			},
 
 			CheckBox{
-				Text:     "Включить в отчёт измеренные напряжения",
-				AssignTo: &cbIncSamps,
+				Text:     "Измеренное напряжение в отчёт",
+				AssignTo: &cbIncU,
 				Checked:  c.Table.IncludeSamples,
 				OnCheckedChanged: func() {
-					c.Table.IncludeSamples = cbIncSamps.Checked()
+					c.Table.IncludeSamples = cbIncU.Checked()
 				},
 			},
+
+			Label{Text: "Принтер по умолчанию:"},
+			Label{
+				Font: Font{
+					Family:    "Segoe UI",
+					PointSize: 14,
+					Bold:      true,
+				},
+				Text: defaultPrinter,
+			},
+
+			Label{Text: "Принтер"},
+			ComboBox{
+				Model:        printers,
+				CurrentIndex: nPrinter,
+				Editable:     false,
+				AssignTo:     &cbPrinter,
+				OnCurrentIndexChanged: func() {
+					c.Printer = printers[cbPrinter.CurrentIndex()]
+				},
+			},
+
 			PushButton{
 				Text: "Применить",
 				OnClicked: func() {

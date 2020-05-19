@@ -53,18 +53,17 @@ func runMeasure(measurement data.Measurement) {
 			setStatusOkSync(labelWorkStatus, fmt.Sprintf("Измерение %d газ=%d U=%g I=%g",
 				nSample+1, smp.Gas, smp.Tension, smp.Current))
 
-			dataSmp := data.Sample{
+			measurement.Samples = append(measurement.Samples, data.Sample{
 				Gas: smp.Gas,
 				Ub:  smp.Tension,
-				I:   smp.Current,
-			}
+				Ib:  smp.Current,
+			})
+
+			dataSmp := &measurement.Samples[nSample]
 
 			if nSample > 0 {
 				dataSmp.Br = measurement.Samples[nSample-1].Br
 			}
-
-			measurement.Samples = append(measurement.Samples, dataSmp)
-			setMeasurementViewUISafe(measurement)
 
 			// установить рабочее напряжение
 			if err := setupTensionBar(log, ctx, smp.Tension); err != nil {
@@ -81,24 +80,34 @@ func runMeasure(measurement data.Measurement) {
 				return err
 			}
 
-			if err := readSample(log, ctx, &measurement.Samples[nSample]); err != nil {
+			if err := readSample(log, ctx, dataSmp); err != nil {
 				return err
 			}
+
+			if dataSmp.I < 0.006 {
+				// найти обрыв
+				if err := processBreak(log, ctx, &measurement, dataSmp); err != nil {
+					return err
+				}
+			}
+
+			setMeasurementViewUISafe(measurement)
+
 			if err := delay(log, ctx, measurement, scheme); err != nil {
 				return err
 			}
 
-			if err := readAndSaveCurrentSample(log, ctx, &measurement); err != nil {
+			if err := readSample(log, ctx, dataSmp); err != nil {
 				return err
 			}
+			if err := data.SaveMeasurement(db, &measurement); err != nil {
+				return err
+			}
+
+			setMeasurementViewUISafe(measurement)
 		}
 
-		filename, err := newPdf(measurement)
-		if err != nil {
-			return err
-		}
-
-		if err := exec.Command("PDFtoPrinter", filename, cfg.Get().Printer).Start(); err != nil {
+		if err := printMeasurement(measurement); err != nil {
 			return err
 		}
 
@@ -108,21 +117,19 @@ func runMeasure(measurement data.Measurement) {
 	})
 }
 
-func readAndSaveCurrentSample(log comm.Logger, ctx context.Context, m *data.Measurement) error {
-	dataSmp := &m.Samples[len(m.Samples)-1]
-	if err := readSample(log, ctx, dataSmp); err != nil {
+func printMeasurement(m data.Measurement) error {
+	filename, err := newPdf(m)
+	if err != nil {
 		return err
 	}
-	if err := data.SaveMeasurement(db, m); err != nil {
+
+	if err := exec.Command("PDFtoPrinter", filename, cfg.Get().Printer).Start(); err != nil {
 		return err
 	}
-	setMeasurementViewUISafe(*m)
 	return nil
 }
 
 func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []calc.Sample) error {
-	defer pause(ctx.Done(), cfg.Get().Voltmeter.PauseMeasureScan)
-
 	smpIndex := len(m.Samples) - 1
 
 	progress := func(t time.Time, d time.Duration) int {
@@ -135,14 +142,27 @@ func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []ca
 
 	upd := func() {
 		d1 := progress(startTime, smp.Duration)
-		totalDur := calc.GetTotalMeasureDuration(scheme)
-		d2 := progress(m.CreatedAt, totalDur)
+		totalDur := getMeasureDuration(scheme)
+		var elapsed time.Duration
+		if smpIndex > 0 {
+			elapsed = getMeasureDuration(scheme[:smpIndex])
+		}
+		time0 := startTime.Add(-elapsed)
+
+		d2 := progress(time0, totalDur)
+
 		progressBarCurrentWork.SetValue(d1)
 		progressBarTotalWork.SetValue(d2)
-		s := fmt.Sprintf("%s из %s %d%s", time.Since(startTime), smp.Duration, d1, "%")
+
+		s := fmt.Sprintf("%s : %s - %s : %d%s",
+			startTime.Format("15:04:05"),
+			pkg.FormatDuration(time.Since(startTime)),
+			pkg.FormatDuration(smp.Duration), d1, "%")
 		_ = labelCurrentDelay.SetText(s)
-		s = fmt.Sprintf("Общий прогресс выполнения %s из %s %d%s",
-			time.Since(m.CreatedAt), totalDur, d2, "%")
+
+		s = fmt.Sprintf("Обмер : %s - %s : %d%s",
+			pkg.FormatDuration(time.Since(time0)),
+			pkg.FormatDuration(totalDur), d2, "%")
 		_ = labelTotalDelay.SetText(s)
 	}
 
@@ -183,19 +203,43 @@ func delay(log comm.Logger, ctx context.Context, m data.Measurement, scheme []ca
 		}
 	}()
 
+	conf := cfg.Get()
+	tickVoltmeter := time.NewTicker(conf.Voltmeter.PauseMeasureScan)
+	tickConsumption := time.NewTicker(time.Second)
+	defer func() {
+		tickVoltmeter.Stop()
+		tickConsumption.Stop()
+	}()
+
 	for {
+
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		if ctxDelay.Err() == context.DeadlineExceeded {
+		smp := &m.Samples[smpIndex]
+		select {
+		case <-ctxDelay.Done():
 			return nil
+		case <-tickVoltmeter.C:
+			if err := readSample(log, ctx, smp); err != nil {
+				return err
+			}
+			setMeasurementViewUISafe(m)
+		case <-tickConsumption.C:
+			var err error
+			if smp.Q, err = readGasConsumption(log, ctx); err != nil {
+				return err
+			}
+			setMeasurementViewUISafe(m)
 		}
-		if err := readSample(log, ctx, &m.Samples[smpIndex]); err != nil {
-			return err
-		}
-		setMeasurementViewUISafe(m)
-		pause(ctxDelay.Done(), cfg.Get().Voltmeter.PauseMeasureScan)
 	}
+}
+
+func getMeasureDuration(xs []calc.Sample) (d time.Duration) {
+	for _, x := range xs {
+		d += x.Duration
+	}
+	return
 }
 
 func readSample(log comm.Logger, ctx context.Context, smp *data.Sample) error {
@@ -213,26 +257,8 @@ func readSample(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 		return err
 	}
 
-	// нет обрыва
-	if smp.I > 0.006 {
-		return nil
-	}
-
-	// установить напряжение 10В
-	if err := setupTensionBar(log, ctx, 10); err != nil {
-		return err
-	}
-
-	// найти обрыв
-	if err := readBreak(log, ctx, smp); err != nil {
-		return err
-	}
-
-	// установить рабочее напряжение
-	if err := setupTensionBar(log, ctx, smp.Ub); err != nil {
-		return err
-	}
 	smp.Tm = time.Now()
+
 	return nil
 }
 
@@ -297,7 +323,7 @@ func runSearchBreak() {
 			return err
 		}
 		var smp data.Sample
-		err := readBreak(log, ctx, &smp)
+		err := processBreak(log, ctx, nil, &smp)
 		if err != nil {
 			return err
 		}
@@ -340,7 +366,7 @@ func runReadConsumption() {
 				appWindow.Synchronize(func() {
 					_ = labelConsumption.SetText(pkg.FormatFloatTrimNulls(cons, 3))
 				})
-				pause(ctx.Done(), 50*time.Millisecond)
+				pause(ctx, 50*time.Millisecond)
 			}
 		}
 	})

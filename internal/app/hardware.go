@@ -222,13 +222,18 @@ func setupCurrentBar(log comm.Logger, ctx context.Context, I float64) error {
 	return nil
 }
 
-func readBreak(log comm.Logger, ctx context.Context, smp *data.Sample) error {
-
-	setStatusOkSync(labelControlSheet, "поиск обрыва")
+func processBreak(log comm.Logger, ctx context.Context, m *data.Measurement, smp *data.Sample) error {
 
 	c := cfg.Get()
 
 	log = structloge.PrependSuffixKeys(log, "COMPORT", c.ControlSheet.Comport)
+
+	setStatusOkSync(labelControlSheet, "поиск обрыва")
+
+	// установить напряжение 10В
+	if err := setupTensionBar(log, ctx, 10); err != nil {
+		return err
+	}
 
 	for i := 0; i < 16; i++ {
 		if ctx.Err() != nil {
@@ -247,8 +252,14 @@ func readBreak(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 
 		// обрыв, если измеренное напряжение на месте i больше 6
 		smp.Br[i] = math.Abs(smp.U[i]) > 6
+
+		// обновить данные в таблице
+		if m != nil {
+			setMeasurementViewUISafe(*m)
+		}
 	}
 
+	// подключить необорванные места, отключить оборванные
 	var placeConnection uint16
 	for i := 0; i < 16; i++ {
 		if !smp.Br[i] {
@@ -256,6 +267,11 @@ func readBreak(log comm.Logger, ctx context.Context, smp *data.Sample) error {
 		}
 	}
 	if err := setupPlaceConnection(log, ctx, placeConnection); err != nil {
+		return err
+	}
+
+	// установить рабочее напряжение
+	if err := setupTensionBar(log, ctx, smp.Ub); err != nil {
 		return err
 	}
 
@@ -289,7 +305,7 @@ func readVoltmeter(log comm.Logger, ctx context.Context, smp *data.Sample) error
 		log.Printf("вольтметр: %s: % X", scanRequest1, []byte(scanRequest))
 	}
 
-	pause(ctx.Done(), Conf.Voltmeter.PauseScan)
+	pause(ctx, Conf.Voltmeter.PauseScan)
 	b, err := commVoltmeter().GetResponse(log, ctx, []byte("FETCh?\n"))
 	if err != nil {
 		return fmt.Errorf("вольтметр: %w", err)
@@ -325,7 +341,7 @@ func readVoltmeter(log comm.Logger, ctx context.Context, smp *data.Sample) error
 	}
 	smp.T = 8.969*math.Abs(Ut) - 64.305
 
-	setStatusOkSync(labelVoltmeter, s)
+	setStatusOkSync(labelVoltmeter, "измерено")
 	return nil
 }
 

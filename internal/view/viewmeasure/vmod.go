@@ -80,8 +80,19 @@ func (x *TableViewModel) SetViewData(d data.Measurement, cs []calc.Column) {
 	addRowNoCalc("Газ", func(s smp) interface{} {
 		return s.Gas
 	})
+
+	addRowNoCalc("ПГС", func(s smp) interface{} {
+		if s.Gas >= len(d.Pgs) {
+			return ""
+		}
+		return pkg.FormatFloatTrimNulls(d.Pgs[s.Gas], 2)
+	})
+
 	addRowNoCalc("Q,мл/мин", func(s smp) interface{} {
 		return pkg.FormatFloat(s.Q, 2)
+	})
+	addRowNoCalc("Ib,А", func(s smp) interface{} {
+		return pkg.FormatFloat(s.I, 3)
 	})
 	addRowNoCalc("I,А", func(s smp) interface{} {
 		return pkg.FormatFloat(s.I, 3)

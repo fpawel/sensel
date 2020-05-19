@@ -116,13 +116,6 @@ func (c C) ListKinds(device string) (xs []string) {
 	return
 }
 
-func GetTotalMeasureDuration(xs []Sample) (d time.Duration) {
-	for _, x := range xs {
-		d += x.Duration
-	}
-	return
-}
-
 func (c C) GetProductTypeMeasurementScheme(device, kind string) ([]Sample, error) {
 	mD, ok := c.d[device]
 	if !ok {

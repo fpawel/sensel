@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/ansel1/merry v1.5.1
+	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/fpawel/comm v0.0.0-20200515064222-08d5f2c8f85d
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/google/go-cmp v0.4.0

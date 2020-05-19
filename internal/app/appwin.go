@@ -44,63 +44,7 @@ func newApplicationWindow() MainWindow {
 		Layout: VBox{
 			Alignment: AlignHFarVNear,
 		},
-		MenuItems: []MenuItem{
-			Action{
-				AssignTo: &menuStop,
-				Text:     "Прервать",
-				Visible:  false,
-				OnTriggered: func() {
-					interruptWorkFunc()
-					log.Debug("work interrupted")
-				},
-			},
-
-			Action{
-				AssignTo:    &menuRunMeasure,
-				Text:        "Обмер",
-				OnTriggered: startMeasure,
-			},
-			Menu{
-				AssignTo: &menuControl,
-				Text:     "Управление",
-				Items: []MenuItem{
-					Action{
-						Text:        "Проверка связи",
-						OnTriggered: runCheckConnection,
-					},
-
-					Action{
-						Text:        "Газовый блок",
-						OnTriggered: runReadConsumption,
-					},
-
-					Action{
-						Text:        "Опрос вольтметра",
-						OnTriggered: runReadVoltmeter,
-					},
-					Action{
-						Text:        "Опрос установки контроля",
-						OnTriggered: runReadSample,
-					},
-					Action{
-						Text:        "Поиск обрыва",
-						OnTriggered: runSearchBreak,
-					},
-					Action{
-						Text:        "Ввод команд",
-						OnTriggered: executeConsole,
-					},
-				},
-			},
-			Action{
-				Text:        "Отчёт",
-				OnTriggered: newReport,
-			},
-			Action{
-				Text:        "Настройка",
-				OnTriggered: runAppSettingsDialog,
-			},
-		},
+		MenuItems: []MenuItem{},
 		Children: []Widget{
 
 			Composite{
@@ -109,17 +53,81 @@ func newApplicationWindow() MainWindow {
 					ScrollView{
 						AssignTo:      &scrollViewSelectMeasure,
 						VerticalFixed: true,
-						MaxSize:       Size{Height: 50, Width: 0},
-						MinSize:       Size{Height: 50, Width: 0},
+						MaxSize:       Size{Height: 80, Width: 0},
+						MinSize:       Size{Height: 80, Width: 0},
 						Layout: HBox{
 							Alignment:   AlignHCenterVCenter,
 							MarginsZero: true,
 						},
 						Children: []Widget{
+							PushButton{
+								Image:    "assets/img/cancel25.png",
+								AssignTo: &buttonStop,
+								Visible:  false,
+								Text:     " Прервать",
+								MaxSize:  Size{Width: 120},
+								OnClicked: func() {
+									interruptWorkFunc()
+									log.Debug("work interrupted")
+								},
+							},
+							SplitButton{
+								AssignTo:  &buttonRun,
+								Image:     "assets/img/rs232_25.png",
+								Text:      " Обмер",
+								MaxSize:   Size{Width: 120},
+								OnClicked: startMeasure,
+								MenuItems: []MenuItem{
+									Action{
+										Text:        "Проверить связь",
+										OnTriggered: runCheckConnection,
+									},
+									Action{
+										Text:        "Газ",
+										OnTriggered: runReadConsumption,
+									},
+									Action{
+										Text:        "Опрос вольтметра",
+										OnTriggered: runReadVoltmeter,
+									},
+									Action{
+										Text:        "Опрос установки контроля",
+										OnTriggered: runReadSample,
+									},
+									Action{
+										Text:        "Поиск обрыва",
+										OnTriggered: runSearchBreak,
+									},
+									Action{
+										Text:        "Ввод команд",
+										OnTriggered: executeConsole,
+									},
+								},
+							},
+
+							SplitButton{
+								Text:    " Отчёт",
+								Image:   "assets/img/pdf.png",
+								MaxSize: Size{Width: 120},
+								MenuItems: []MenuItem{
+									Action{
+										Text:        "Печать",
+										OnTriggered: printCurrentReport,
+									},
+									Action{
+										Text:        "Настройка",
+										OnTriggered: runReportSettingsDialog,
+									},
+								},
+								OnClicked: showCurrentReport,
+							},
+
 							Label{
 								Text: "Измерение:",
 							},
 							ComboBox{
+								MaxSize:               Size{Width: 500},
+								MinSize:               Size{Width: 500},
 								AssignTo:              &comboboxMeasurements,
 								OnCurrentIndexChanged: comboboxMeasurementsCurrentIndexChanged,
 								ContextMenuItems: []MenuItem{
@@ -180,6 +188,13 @@ func newApplicationWindow() MainWindow {
 									PushButton{
 										Text:      "Выкл.",
 										OnClicked: setGas(0),
+									},
+									PushButton{
+										Text: "Закрыть",
+										OnClicked: func() {
+											interruptWorkFunc()
+											log.Debug("work interrupted")
+										},
 									},
 								},
 							},
@@ -435,28 +450,35 @@ func newPdf(m data.Measurement) (string, error) {
 	}, c.IncludeSamples)
 }
 
-func newReport() {
+func withErrorDialog(err error) {
+	if err == nil {
+		return
+	}
+	errorDialog(err.Error())
+}
 
-	if err := func() error {
-		measurementID, err := getSelectedMeasurementID()
+func showCurrentReport() {
+	withErrorDialog(func() error {
+		m, err := getSelectedMeasurement()
 		if err != nil {
 			return err
 		}
-		var m data.Measurement
-		m.MeasurementID = measurementID
-		if err := data.GetMeasurement(db, &m); err != nil {
-			return err
-		}
-
 		filename, err := newPdf(m)
 		if err != nil {
 			return err
 		}
-
 		return exec.Command("explorer.exe", filename).Start()
-	}(); err != nil {
-		errorDialog(err.Error())
-	}
+	}())
+}
+
+func printCurrentReport() {
+	withErrorDialog(func() error {
+		m, err := getSelectedMeasurement()
+		if err != nil {
+			return err
+		}
+		return printMeasurement(m)
+	}())
 }
 
 func deleteCurrentMeasurement() {
@@ -466,6 +488,19 @@ func deleteCurrentMeasurement() {
 	}
 	db.MustExec(`DELETE FROM measurement WHERE measurement_id=?`, measurementID)
 	setupArchiveFilterLastMeasurements(50)
+}
+
+func getSelectedMeasurement() (data.Measurement, error) {
+	measurementID, err := getSelectedMeasurementID()
+	if err != nil {
+		return data.Measurement{}, err
+	}
+	var m data.Measurement
+	m.MeasurementID = measurementID
+	if err := data.GetMeasurement(db, &m); err != nil {
+		return data.Measurement{}, err
+	}
+	return m, nil
 }
 
 func getSelectedMeasurementID() (int64, error) {
@@ -484,11 +519,9 @@ func runWork(work func(ctx context.Context) error) {
 	must.PanicIf(labelControlSheet.SetText(""))
 
 	setupWidgets := func(run bool) {
-		must.PanicIf(menuRunMeasure.SetVisible(!run))
-		must.PanicIf(menuStop.SetVisible(run))
-		for i := 0; i < menuControl.Actions().Len(); i++ {
-			must.PanicIf(menuControl.Actions().At(i).SetVisible(!run))
-		}
+		buttonStop.SetVisible(run)
+		buttonRun.SetVisible(!run)
+		comboboxMeasurements.SetEnabled(!run)
 	}
 
 	setupWidgets(true)
@@ -611,9 +644,9 @@ func setMeasurementView(m data.Measurement) {
 }
 
 var (
-	menuStop,
-	menuRunMeasure *walk.Action
-	menuControl      *walk.Menu
+	buttonStop *walk.PushButton
+	buttonRun  *walk.SplitButton
+
 	tableViewMeasure *walk.TableView
 	labelCalcErr     *walk.LineEdit
 

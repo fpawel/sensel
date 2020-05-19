@@ -15,12 +15,11 @@ import (
 )
 
 type Config struct {
-	Printer            string        `yaml:"printer"`
-	Gas                Gas           `yaml:"gas"`
-	Voltmeter          Voltmeter     `yaml:"voltmeter"`
-	ControlSheet       Control       `yaml:"control"`
-	ReadSampleInterval time.Duration `yaml:"read_sample_interval"`
-	Debug              struct {
+	Printer      string    `yaml:"printer"`
+	Gas          Gas       `yaml:"gas"`
+	Voltmeter    Voltmeter `yaml:"voltmeter"`
+	ControlSheet Control   `yaml:"control"`
+	Debug        struct {
 		LogComm bool `yaml:"log_comm"`
 	} `yaml:"debug"`
 	Table                 TableConfig `yaml:"table"`
@@ -84,8 +83,8 @@ func Get() (r Config) {
 
 func Set(c Config) error {
 
-	if c.ReadSampleInterval < 10*time.Second {
-		c.ReadSampleInterval = 10 * time.Second
+	if c.Voltmeter.PauseMeasureScan < time.Second {
+		c.Voltmeter.PauseMeasureScan = time.Second
 	}
 
 	b := must.MarshalYaml(c)
@@ -124,7 +123,6 @@ func init() {
 		fmt.Println(err, "file:", filename())
 
 		c = Config{
-			ReadSampleInterval: 5 * time.Second,
 			Gas: Gas{
 				Comm: Comm{
 					BaudRate:           9600,
