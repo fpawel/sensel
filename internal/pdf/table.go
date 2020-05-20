@@ -11,7 +11,7 @@ type TableConfig struct {
 }
 
 type tableCell struct {
-	err bool
+	err, br bool
 	text,
 	border,
 	align string
@@ -39,10 +39,23 @@ func (t table) render() {
 			if nCol == len(colWidths)-1 {
 				ln = 1
 			}
-			if c.err {
-				t.doc.SetFillColor(230, 230, 230)
+
+			if c.br {
+				t.doc.SetFillColor(0, 0, 0)
+				textColorR, textColorG, textColorB := t.doc.GetTextColor()
+				t.doc.SetTextColor(255, 255, 255)
 				t.doc.CellFormat(w, t.cfg.RowHeight, text, c.border, ln, c.align, true, 0, "")
 				t.doc.SetFillColor(255, 255, 255)
+				t.doc.SetTextColor(textColorR, textColorG, textColorB)
+				continue
+			}
+			if c.err {
+				t.doc.SetFillColor(230, 230, 230)
+				textColorR, textColorG, textColorB := t.doc.GetTextColor()
+				t.doc.SetTextColor(255, 0, 0)
+				t.doc.CellFormat(w, t.cfg.RowHeight, text, c.border, ln, c.align, true, 0, "")
+				t.doc.SetFillColor(255, 255, 255)
+				t.doc.SetTextColor(textColorR, textColorG, textColorB)
 				continue
 			}
 			t.doc.CellFormat(w, t.cfg.RowHeight, text, c.border, ln, c.align, false, 0, "")

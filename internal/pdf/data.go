@@ -36,7 +36,7 @@ func newTableRows1(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 
 		row = []tableCell{
 			{
-				err:    m.Br(i),
+				br:     m.Br(i),
 				text:   fmt.Sprintf("%d", i+1),
 				border: "LRTB",
 				align:  "C",
@@ -44,7 +44,7 @@ func newTableRows1(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 		}
 		for _, smp := range m.Samples {
 			row = append(row, tableCell{
-				err:    smp.Br[i],
+				br:     smp.Br[i],
 				text:   pkg.FormatFloat(smp.U[i], 3),
 				border: "LRTB",
 				align:  "R",
@@ -52,6 +52,9 @@ func newTableRows1(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 		}
 
 		for _, c := range cs {
+			if c.IsErr(i) {
+				row[0].err = true
+			}
 			row = append(row, tableCell{
 				err:    c.IsErr(i),
 				text:   pkg.FormatFloat(c.Values[i].Value, c.Precision),
@@ -131,7 +134,7 @@ func newTableRows2(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 
 		row = []tableCell{
 			{
-				err:    m.Br(i),
+				br:     m.Br(i),
 				text:   fmt.Sprintf("%d", i+1),
 				border: "LRTB",
 				align:  "C",
@@ -139,6 +142,9 @@ func newTableRows2(m data.Measurement, cs []calc.Column) (rows []tableCells) {
 		}
 
 		for _, c := range cs {
+			if c.IsErr(i) {
+				row[0].err = true
+			}
 			row = append(row, tableCell{
 				err:    c.IsErr(i),
 				text:   pkg.FormatFloat(c.Values[i].Value, c.Precision),

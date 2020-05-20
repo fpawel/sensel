@@ -84,14 +84,14 @@ func runMeasure(measurement data.Measurement) {
 				return err
 			}
 
+			setMeasurementViewUISafe(measurement)
+
 			if dataSmp.I < 0.006 {
 				// найти обрыв
 				if err := processBreak(log, ctx, &measurement, dataSmp); err != nil {
 					return err
 				}
 			}
-
-			setMeasurementViewUISafe(measurement)
 
 			if err := delay(log, ctx, measurement, scheme); err != nil {
 				return err

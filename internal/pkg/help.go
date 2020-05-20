@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 )
@@ -20,6 +21,9 @@ func FormatFloatTrimNulls(v float64, prec int) string {
 }
 
 func FormatFloat(v float64, prec int) string {
+	if math.IsNaN(v) || math.IsInf(v, -1) || math.IsInf(v, 1) {
+		return ""
+	}
 	return strconv.FormatFloat(v, 'f', prec, 64)
 }
 
