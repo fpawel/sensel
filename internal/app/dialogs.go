@@ -31,7 +31,8 @@ func executeConsole() {
 	}()
 	L.SetGlobal("go", luar.New(L, &luaConsole{L: L}))
 
-	const helpStr = "go:Gas(1)\r\n" +
+	const helpStr = "go:Pause('1s')\r\n" +
+		"go:Gas(1)\r\n" +
 		"go:SetTension(10)\r\n" +
 		"go:SetCurrent(0.05)\r\n" +
 		"go:SetConnection(0xFFFF)\r\n" +
@@ -43,6 +44,7 @@ func executeConsole() {
 		edStatus *walk.LineEdit
 		edHelp   *walk.TextEdit
 		pb       *walk.PushButton
+		pbStop   *walk.PushButton
 		dlg      *walk.Dialog
 	)
 
@@ -102,8 +104,10 @@ func executeConsole() {
 						MinSize:  Size{Width: 90},
 						OnClicked: func() {
 							setStatus(true, "выполняется...")
-							pb.SetEnabled(false)
+							ctx, cancel = context.WithCancel(context.Background())
 							L.SetContext(ctx)
+							pbStop.SetVisible(true)
+							pb.SetVisible(false)
 							go func() {
 								s := edCmd.Text()
 								must.PanicIf(ioutil.WriteFile("console.lua", []byte(s), 0666))
@@ -117,9 +121,20 @@ func executeConsole() {
 									} else {
 										setStatus(false, err.Error())
 									}
-									pb.SetEnabled(true)
+									pbStop.SetVisible(false)
+									pb.SetVisible(true)
 								})
 							}()
+						},
+					},
+					PushButton{
+						Text:     "Прервать",
+						Visible:  false,
+						AssignTo: &pbStop,
+						MaxSize:  Size{Width: 90},
+						MinSize:  Size{Width: 90},
+						OnClicked: func() {
+							cancel()
 						},
 					},
 				},
@@ -569,7 +584,7 @@ func runFilterArchiveDialog() (int, time.Month, int, bool) {
 	return year, month, day, r == walk.DlgCmdOK
 }
 
-func errorDialog(errStr string) {
+func errorDialog(err error) {
 	var (
 		dlg *walk.Dialog
 		pb  *walk.PushButton
@@ -594,7 +609,7 @@ func errorDialog(errStr string) {
 			TextEdit{
 				TextColor: walk.RGB(255, 0, 0),
 				ReadOnly:  true,
-				Text:      errStr,
+				Text:      formatError(err),
 			},
 			ScrollView{
 				Layout:          VBox{},
@@ -615,6 +630,6 @@ func errorDialog(errStr string) {
 		},
 	}
 	must.PanicIf(Dlg.Create(appWindow))
-	must.PanicIf(pb.SetFocus())
+	_ = pb.SetFocus()
 	dlg.Run()
 }

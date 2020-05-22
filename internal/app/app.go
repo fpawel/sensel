@@ -39,17 +39,6 @@ func Main() {
 
 	must.PanicIf(newApplicationWindow().Create())
 
-	appWindow.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
-		cs := tableViewMeasure.Columns()
-		c := cfg.Get()
-		xs := &c.AppWindow.TableViewMeasure.ColumnWidths
-		*xs = nil
-		for i := 0; i < cs.Len(); i++ {
-			*xs = append(*xs, cs.At(i).Width())
-		}
-		must.PanicIf(cfg.Set(c))
-	})
-
 	// связывание TableView с моделью
 	viewmeasure.NewMainTableViewModel(tableViewMeasure)
 

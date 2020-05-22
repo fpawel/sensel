@@ -117,51 +117,50 @@ func readFile() (Config, error) {
 }
 
 func init() {
-	var err error
 	c, err := readFile()
-	if err != nil {
-		fmt.Println(err, "file:", filename())
-
-		c = Config{
-			Gas: Gas{
-				Comm: Comm{
-					BaudRate:           9600,
-					TimeoutGetResponse: time.Second,
-					TimeoutEndResponse: 50 * time.Millisecond,
-					MaxAttemptsRead:    3,
-				},
-			},
-			Voltmeter: Voltmeter{
-				Comm: Comm{
-					BaudRate:           115200,
-					TimeoutGetResponse: time.Second,
-					TimeoutEndResponse: 50 * time.Millisecond,
-					MaxAttemptsRead:    3,
-				},
-				PauseScan:        3 * time.Second,
-				PauseMeasureScan: time.Second,
-			},
-			ControlSheet: Control{
-				Comm: Comm{
-					BaudRate:           9600,
-					TimeoutGetResponse: 3 * time.Second,
-					TimeoutEndResponse: 50 * time.Millisecond,
-					MaxAttemptsRead:    3,
-				},
-				KI:  0.000082,
-				Kt0: -64.305,
-				Kt1: 8.969,
-			},
-			Table: TableConfig{
-				RowHeightMM:      2.75,
-				CellHorizSpaceMM: 1.,
-				FontSizePixels:   5.5,
-			},
-			LastMeasurementsCount: 50,
-		}
-
+	defer must.PanicIf(Set(c))
+	if err == nil {
+		return
 	}
-	must.PanicIf(Set(c))
+	fmt.Println(err, "file:", filename())
+
+	c = Config{
+		Gas: Gas{
+			Comm: Comm{
+				BaudRate:           9600,
+				TimeoutGetResponse: time.Second,
+				TimeoutEndResponse: 50 * time.Millisecond,
+				MaxAttemptsRead:    3,
+			},
+		},
+		Voltmeter: Voltmeter{
+			Comm: Comm{
+				BaudRate:           115200,
+				TimeoutGetResponse: time.Second,
+				TimeoutEndResponse: 50 * time.Millisecond,
+				MaxAttemptsRead:    3,
+			},
+			PauseScan:        3 * time.Second,
+			PauseMeasureScan: time.Second,
+		},
+		ControlSheet: Control{
+			Comm: Comm{
+				BaudRate:           9600,
+				TimeoutGetResponse: 3 * time.Second,
+				TimeoutEndResponse: 50 * time.Millisecond,
+				MaxAttemptsRead:    3,
+			},
+			KI:  0.000082,
+			Kt0: -64.305,
+			Kt1: 8.969,
+		},
+		Table: TableConfig{
+			RowHeightMM:      2.75,
+			CellHorizSpaceMM: 1.,
+			FontSizePixels:   5.5,
+		},
+		LastMeasurementsCount: 50,
+	}
 }
 
 func getGob() (r Config) {

@@ -5,6 +5,7 @@ import (
 	"github.com/ansel1/merry"
 	lua "github.com/yuin/gopher-lua"
 	"strconv"
+	"time"
 )
 
 type luaConsole struct {
@@ -16,6 +17,12 @@ func (x *luaConsole) errorIf(err error) {
 		return
 	}
 	x.L.RaiseError("%v", err)
+}
+
+func (x *luaConsole) Pause(strDur string) {
+	dur, err := time.ParseDuration(strDur)
+	x.errorIf(err)
+	pause(x.L.Context(), dur)
 }
 
 func (x *luaConsole) Gas(gas int) {

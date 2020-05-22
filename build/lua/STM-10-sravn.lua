@@ -1,6 +1,6 @@
 return {
     Samples = {
-        sample(1, "0m30s", 0.009, 10),
+        sample(1, "0m30s", 0.009, 20),
         sample(1, "2m00s", 0.160, 40)
     }, 
     Calculate = function (U, I, T, C)
@@ -8,7 +8,7 @@ return {
         -- ТКС платины [1/°C]
         local gPt = 0.00385
 
-        -- Номинальное значение рабочего тока [мА]
+        -- Номинальное значение рабочего тока [А]
         local Inom = 0.160
 
         -- Номинальное значение температуры среды [°C]
@@ -27,7 +27,7 @@ return {
         local B = (Tch_nom - Tnom) / (I[2] * I[2])
 
         -- Рабочее напряжение на ЧЭ, приведенное к 20 °C и номинальному значению рабочего тока [В]
-        local U20 = Inom * R0 *(1 + gPt *(Tnom + B * Inom *Inom))
+        local U20 = Inom * R0 * (1 + gPt * (Tnom + B * Inom * Inom))
 
         return {
             {

@@ -451,10 +451,9 @@ func newPdf(m data.Measurement) (string, error) {
 }
 
 func withErrorDialog(err error) {
-	if err == nil {
-		return
+	if err != nil {
+		errorDialog(err)
 	}
-	errorDialog(err.Error())
 }
 
 func showCurrentReport() {
@@ -551,8 +550,8 @@ func runWork(work func(ctx context.Context) error) {
 				return
 			}
 			setStatusErr(labelWorkStatus, err)
-			saveErrorToFile(err.Error())
-			errorDialog(err.Error())
+			saveErrorToFile(err)
+			errorDialog(err)
 		})
 	}()
 }

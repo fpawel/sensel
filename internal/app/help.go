@@ -1,26 +1,29 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/ansel1/merry"
 	"github.com/fpawel/sensel/internal/data"
 	"github.com/fpawel/sensel/internal/pkg/must"
 	"github.com/lxn/walk"
-	"math"
 	"os"
 	"path/filepath"
-	"runtime/debug"
+	"runtime"
 	"strings"
 	"time"
 )
 
-func saveErrorToFile(saveErr string) {
+func saveErrorToFile(saveErr error) {
 	file, err := os.OpenFile(filepath.Join(filepath.Dir(os.Args[0]), "errors.log"), os.O_CREATE|os.O_APPEND, 0666)
 	must.FatalIf(err)
 	defer func() {
 		must.FatalIf(file.Close())
 	}()
-	_, err = file.WriteString(time.Now().Format("2006.01.02 15:04:05") + " " + strings.TrimSpace(saveErr) + "\n")
+	_, err = file.WriteString(time.Now().Format("2006.01.02 15:04:05") + " " + formatError(saveErr) + "\n")
+	must.FatalIf(err)
+	_, err = file.WriteString(formatMerryStacktrace(saveErr))
 	must.FatalIf(err)
 }
 
@@ -30,20 +33,14 @@ func formatMeasureInfo(m data.MeasurementInfo) string {
 }
 
 func panicWithSaveRecoveredErrorToFile() {
-	msgBoxErr := func(msg string) {
-		dir := filepath.Dir(os.Args[0])
-		msg = strings.ReplaceAll(msg, dir+"\\", "")
-		walk.MsgBox(nil, "Установка контроля ЧЭ", msg,
-			walk.MsgBoxIconError|walk.MsgBoxOK|walk.MsgBoxSystemModal)
-	}
-
 	x := recover()
 	if x == nil {
 		return
 	}
-	errStr := fmt.Sprintf("panic: %+v", x)
-	saveErrorToFile(errStr + ": " + string(debug.Stack()))
-	msgBoxErr(errStr)
+	err := fmt.Errorf("panic: %+v", x)
+	saveErrorToFile(err)
+	walk.MsgBox(nil, "Установка контроля ЧЭ", formatError(err),
+		walk.MsgBoxIconError|walk.MsgBoxOK|walk.MsgBoxSystemModal)
 	panic(x)
 }
 
@@ -97,34 +94,28 @@ func pause(ctx context.Context, d time.Duration) {
 	}
 }
 
-func humanizeDuration(duration time.Duration) string {
-	days := int64(duration.Hours() / 24)
-	hours := int64(math.Mod(duration.Hours(), 24))
-	minutes := int64(math.Mod(duration.Minutes(), 60))
-	seconds := int64(math.Mod(duration.Seconds(), 60))
-
-	chunks := []struct {
-		singularName string
-		amount       int64
-	}{
-		{"day", days},
-		{"hour", hours},
-		{"minute", minutes},
-		{"second", seconds},
+func formatMerryStacktrace(e error) string {
+	s := merry.Stack(e)
+	if len(s) == 0 {
+		return ""
 	}
-
-	parts := []string{}
-
-	for _, chunk := range chunks {
-		switch chunk.amount {
-		case 0:
-			continue
-		case 1:
-			parts = append(parts, fmt.Sprintf("%d %s", chunk.amount, chunk.singularName))
-		default:
-			parts = append(parts, fmt.Sprintf("%d %ss", chunk.amount, chunk.singularName))
+	buf := bytes.Buffer{}
+	for i, fp := range s {
+		fnc := runtime.FuncForPC(fp)
+		if fnc != nil {
+			f, l := fnc.FileLine(fp)
+			name := filepath.Base(fnc.Name())
+			ident := " "
+			if i > 0 {
+				ident = "\t"
+			}
+			buf.WriteString(fmt.Sprintf("%s%s:%d %s\n", ident, f, l, name))
 		}
 	}
+	return buf.String()
+}
 
-	return strings.Join(parts, " ")
+func formatError(err error) string {
+	dir := filepath.Dir(os.Args[0])
+	return strings.ReplaceAll(err.Error(), dir+"\\", "")
 }
