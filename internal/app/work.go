@@ -86,7 +86,7 @@ func runMeasure(measurement data.Measurement) {
 
 			setMeasurementViewUISafe(measurement)
 
-			if dataSmp.I < 0.006 {
+			if dataSmp.I < 0.002 {
 				// найти обрыв
 				if err := processBreak(log, ctx, &measurement, dataSmp); err != nil {
 					return err

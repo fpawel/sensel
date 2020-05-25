@@ -18,6 +18,8 @@ github.com/fpawel/comm v0.0.0-20200512053205-8fcc91622e04 h1:AApVBlqANQeUgD7lEpi
 github.com/fpawel/comm v0.0.0-20200512053205-8fcc91622e04/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/fpawel/comm v0.0.0-20200515064222-08d5f2c8f85d h1:0R3ZePJrKKjTSik8VwHOS2pviACCrcWPBbwi7K2GDnM=
 github.com/fpawel/comm v0.0.0-20200515064222-08d5f2c8f85d/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
+github.com/fpawel/comm v0.0.0-20200525065657-89b34bb8f8d3 h1:lVv0PNOaaYL8/BdNPNiASrCV6gSHWaQT+fRcWlzVdSA=
+github.com/fpawel/comm v0.0.0-20200525065657-89b34bb8f8d3/go.mod h1:W3sS3oaaitd4wtvr7Iise6lLEBfDEpRAu+GcvPmp/h4=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.5.0 h1:ozyZYNQW3x3HtqT1jira07DN2PArx2v7/mN66gGcHOs=
 github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
