@@ -118,7 +118,9 @@ func readFile() (Config, error) {
 
 func init() {
 	c, err := readFile()
-	defer must.PanicIf(Set(c))
+	defer func() {
+		must.PanicIf(Set(c))
+	}()
 	if err == nil {
 		return
 	}
